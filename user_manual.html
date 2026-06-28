@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>คู่มือการใช้งาน Smart Farmer Book</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand-green: #2E7D32;
+            --brand-gold: #D4A373;
+            --text-main: #202124;
+            --bg-color: #f0f2f5;
+        }
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .page {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1, h2, h3 {
+            color: var(--brand-green);
+        }
+        h1 { text-align: center; font-size: 28px; border-bottom: 2px solid var(--brand-green); padding-bottom: 10px; margin-bottom: 30px; }
+        h2 { font-size: 22px; margin-top: 30px; border-left: 5px solid var(--brand-gold); padding-left: 10px; }
+        h3 { font-size: 18px; margin-top: 20px; color: #444; }
+        p, li { font-size: 16px; }
+        ul { padding-left: 20px; }
+        .btn-print {
+            display: block;
+            width: 250px;
+            margin: 0 auto 30px auto;
+            padding: 15px;
+            background-color: var(--brand-green);
+            color: white;
+            text-align: center;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: 0.3s;
+            font-family: 'Sarabun', sans-serif;
+        }
+        .btn-print:hover {
+            background-color: #1b5e20;
+            transform: translateY(-2px);
+        }
+        .alert-box {
+            background-color: #E8F5E9;
+            border-left: 4px solid var(--brand-green);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        /* ซ่อนปุ่ม Print เมื่อสั่งพิมพ์ */
+        @media print {
+            body { background-color: white; padding: 0; }
+            .page { box-shadow: none; padding: 0; max-width: 100%; border-radius: 0; }
+            .btn-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="btn-print" onclick="window.print()">📥 บันทึกเป็น PDF (Print)</button>
+
+    <div class="page">
+        <h1>📖 คู่มือการใช้งาน Smart Farmer Book</h1>
+        <p style="text-align: center;"><strong>เวอร์ชัน 2.0 (อัปเดตล่าสุด)</strong></p>
+
+        <p>ยินดีต้อนรับสู่แอปพลิเคชัน <strong>Smart Farmer Book</strong> แอปคู่ใจชาวไร่อ้อยที่ถูกออกแบบมาเพื่อให้การจัดการแปลงอ้อยเป็นเรื่องง่าย แม่นยำ และเชื่อมโยงข้อมูลกับโรงงานน้ำตาลได้ทันที</p>
+        
+        <hr style="border: 1px solid #eee; margin: 30px 0;">
+
+        <h2>👨‍🌾 ส่วนที่ 1: สำหรับเกษตรกรชาวไร่อ้อย</h2>
+        
+        <h3>1. การเข้าสู่ระบบ (Login)</h3>
+        <ul>
+            <li><strong>ล็อกอินด้วยใบหน้า (Face Sync):</strong> ให้ชาวไร่มองกล้องและทำตามคำแนะนำด้วยเสียง (เช่น หันซ้าย กะพริบตา) เพื่อยืนยันตัวตน ระบบจะจดจำและเข้าสู่หน้าแรกอัตโนมัติ</li>
+            <li><strong>รหัสพาสโค้ด (Passcode):</strong> สามารถใช้รหัสพาสโค้ด 6 หลักที่ตั้งไว้ในการเข้าสู่ระบบแทนได้ หากสภาพแสงไม่เอื้ออำนวย</li>
+        </ul>
+
+        <h3>2. การลงทะเบียนแปลงและการวาดขอบเขตไร่ (GPS & Polygon)</h3>
+        <ul>
+            <li>ไปที่หน้า <strong>"ข้อมูลแปลงอ้อย (Plots)"</strong> กดปุ่มสีเขียว <strong>"เพิ่มแปลงใหม่"</strong></li>
+            <li>กรอกชื่อแปลง, เลือกสายพันธุ์อ้อย, และระบุขนาดพื้นที่ (ไร่)</li>
+            <li><strong>การดึงพิกัด (GPS):</strong> ให้ไปยืนอยู่บริเวณแปลงอ้อย จากนั้นกดปุ่มดึงพิกัด ระบบจะบันทึกละติจูดและลองจิจูดให้เอง</li>
+            <li>หากต้องการให้เจ้าหน้าที่มองเห็นขอบเขตไร่ที่ชัดเจน ท่านสามารถรอให้เจ้าหน้าที่ส่งเสริมเข้ามาวาดกรอบพื้นที่ (Polygon) ให้ผ่านแท็บเล็ตของเจ้าหน้าที่ได้</li>
+        </ul>
+
+        <h3>3. การประเมินผลผลิตอ้อย (Yield Estimator)</h3>
+        <p>ฟังก์ชันไฮไลต์ที่จะช่วยให้ชาวไร่รู้ล่วงหน้าว่าจะได้อ้อยกี่ตัน</p>
+        <ul>
+            <li>ไปที่เมนู <strong>"ประเมินผลผลิตอ้อย"</strong></li>
+            <li>ใส่ข้อมูลที่วัดได้จริงจากไร่: <strong>ระยะห่างร่องอ้อย (เมตร), ความยาวลำอ้อยเฉลี่ย (เซนติเมตร), และจำนวนลำอ้อยต่อ 10 เมตร</strong></li>
+            <li>ระบบคำนวณและแสดงผลออกมาเป็น <strong>"น้ำหนักตันต่อไร่"</strong> และ <strong>"ผลผลิตรวมทั้งหมด"</strong> ทันที</li>
+            <li>กดบันทึก ข้อมูลจะถูกส่งตรงไปที่ฐานข้อมูลของโรงงาน</li>
+        </ul>
+
+        <div class="alert-box">
+            <strong>💡 ทริคแนะนำ:</strong> การประเมินที่แม่นยำที่สุด ควรทำเมื่ออ้อยมีอายุ 8-10 เดือน และควรสุ่มวัดหลายๆ จุดในแปลง
+        </div>
+
+        <h3>4. เครื่องมือสแกนโรคและแมลงด้วย AI (Pest Scanner)</h3>
+        <ul>
+            <li>เมื่อพบความผิดปกติบนใบอ้อย ให้ไปที่เมนู <strong>"AI สแกนโรคพืช"</strong></li>
+            <li>ถ่ายรูปใบอ้อยที่มีปัญหา ระบบ AI จะตีกรอบพื้นที่โรค (Masking) และแจ้งผลเบื้องต้นว่าเป็นโรคหรือแมลงชนิดใด</li>
+            <li>พิกัดของจุดที่เกิดโรคจะถูกส่งไปแสดงบนแผนที่ (Outbreak Map) ของเจ้าหน้าที่ทันที เพื่อให้ส่งยาหรือเข้ามาช่วยเหลือได้ทันเวลา</li>
+        </ul>
+
+        <h3>5. การจองคิวรถตัดและคิวส่งอ้อย (Harvesting Queue)</h3>
+        <ul>
+            <li>ไปที่เมนู <strong>"คิวตัดอ้อย"</strong> เมื่อความหวาน (CCS) ได้มาตรฐานแล้ว</li>
+            <li>เลือกแปลงที่ต้องการตัด ระบุวันที่ต้องการให้รถตัดเข้า และเลือกประเภทอ้อย (อ้อยสด / อ้อยไฟไหม้)</li>
+            <li>เจ้าหน้าที่จะตรวจสอบคิวในระบบ และอนุมัติการส่งอ้อยเข้าหีบกลับมาให้ชาวไร่ทราบ</li>
+        </ul>
+
+        <hr style="border: 1px solid #eee; margin: 40px 0;">
+
+        <h2>👨‍💼 ส่วนที่ 2: สำหรับเจ้าหน้าที่ส่งเสริม (Promoter)</h2>
+
+        <h3>1. การเข้าสู่แดชบอร์ดเจ้าหน้าที่</h3>
+        <ul>
+            <li>ที่หน้าแรกของแอป ให้กดเมนู <strong>"สำหรับเจ้าหน้าที่"</strong> มุมขวาล่าง</li>
+            <li>กรอกรหัสพนักงาน (Staff ID) และรหัสพาสโค้ดที่ได้รับจากส่วนกลาง (เช่น <code>SF-01</code>)</li>
+        </ul>
+
+        <h3>2. การจัดการคำขอและยืนยันแนวเขตไร่ (Polygon Verification)</h3>
+        <ul>
+            <li>แดชบอร์ดจะแสดง <strong>"รายการแปลงที่รอตรวจสอบ"</strong> จากชาวไร่ในโซนรับผิดชอบของคุณ</li>
+            <li>กดปุ่ม <strong>"ตรวจสอบขอบเขต (Polygon)"</strong> เพื่อเข้าสู่ระบบแผนที่ GIS</li>
+            <li><strong>แผนที่ระยะห่าง:</strong> ระบบจะคำนวณพิกัดของคุณ กับพิกัดที่ชาวไร่ปักหมุดไว้ (Haversine Distance) หากอยู่ไกลเกินกำหนด แผนที่จะเปลี่ยนเป็นระบบ Canvas Radar เพื่อนำทางเข้าหาแปลง</li>
+            <li>เมื่อยืนยันว่าแปลงถูกต้อง ให้กรอก <strong>"รหัสแปลงโควตาโรงงาน (Factory Plot Code)"</strong> เช่น <code>45-0213</code> และกดยืนยัน</li>
+        </ul>
+
+        <h3>3. ระบบแจ้งเตือนอัจฉริยะ (Smart Alerts & Analytics)</h3>
+        <ul>
+            <li>หน้า Analytics จะทำการดึงข้อมูลพฤติกรรมในแปลงมาแสดงผล</li>
+            <li>ป้ายแจ้งเตือนสีแดง (Danger) จะโชว์ขึ้นอัตโนมัติ เช่น หากพบว่าผลประเมินต่ำกว่า 6 ตัน/ไร่ หรือพบพิกัดสแกนแมลงหนอนกอระบาดในพื้นที่</li>
+            <li>สามารถสรุปตัวเลขเหล่านี้ เพื่อประชุมทีมหรือโทรให้คำปรึกษาชาวไร่ได้ตรงจุด</li>
+        </ul>
+
+        <div style="text-align: center; margin-top: 50px; color: #777; font-size: 14px;">
+            -- สิ้นสุดคู่มือการใช้งาน --
+        </div>
+
+    </div>
+
+</body>
+</html>
