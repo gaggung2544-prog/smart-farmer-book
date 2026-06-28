@@ -20653,7 +20653,30 @@ function renderStaffDashboard() {
     if (summaryEl) {
         summaryEl.innerHTML = `<span style="font-size:11px; color:var(--text-secondary);">📋 พนักงาน: <strong>${currentStaffName}</strong> | รหัส: <strong>${currentStaffId || '-'}</strong> | คำขอที่รับผิดชอบ: <strong>${requests.length}</strong> รายการ</span>`;
     }
-    
+
+    // อัปเดตการ์ด "ความครบถ้วนข้อมูลในสาย"
+    // ทั้งหมด = จำนวนโควตาชาวไร่ในสายที่รับผิดชอบ (จากฐานข้อมูล mapping)
+    // ลงทะเบียนแล้ว = โควตา (ไม่ซ้ำ) ที่มีการลงทะเบียนแปลงในสายนี้แล้ว
+    const completionPctEl = document.getElementById('staff-completion-pct');
+    const completionBarEl = document.getElementById('staff-completion-bar');
+    const completionDetailEl = document.getElementById('staff-completion-detail');
+    if (completionPctEl || completionBarEl || completionDetailEl) {
+        const expectedQuotas = currentSubzone
+            ? Object.keys(QUOTA_TO_SUBZONE).filter(q => QUOTA_TO_SUBZONE[q] === currentSubzone)
+            : Object.keys(QUOTA_TO_SUBZONE);
+        const totalExpected = expectedQuotas.length;
+        const registeredSet = new Set(
+            plots
+                .filter(p => p.quota && (!currentSubzone || getSubzoneByQuota(p.quota) === currentSubzone))
+                .map(p => p.quota)
+        );
+        const registeredCount = registeredSet.size;
+        const completionPct = totalExpected > 0 ? Math.round((registeredCount / totalExpected) * 100) : 0;
+        if (completionPctEl) completionPctEl.innerText = completionPct + '%';
+        if (completionBarEl) completionBarEl.style.width = Math.min(completionPct, 100) + '%';
+        if (completionDetailEl) completionDetailEl.innerText = `ลงทะเบียนแล้ว ${registeredCount} / ทั้งหมด ${totalExpected} ราย`;
+    }
+
     if (requests.length === 0) {
         emptyState.classList.remove('d-none');
         return;
