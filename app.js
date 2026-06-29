@@ -20623,6 +20623,21 @@ function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// สลับแท็บในหน้าเจ้าหน้าที่ (ภาพรวม / คำขอ / ติดตาม / รายงาน)
+function switchStaffTab(name, btn) {
+    document.querySelectorAll('#screen-staff .staff-tab-panel').forEach(p => {
+        p.classList.toggle('active', p.id === 'stab-' + name);
+    });
+    document.querySelectorAll('#screen-staff .staff-tab-btn').forEach(b => {
+        b.classList.toggle('active', (btn && b === btn) || b.getAttribute('data-stab') === name);
+    });
+    // เลื่อนพื้นที่เลื่อนหลัก (.app-body) ขึ้นบนสุด เพื่อให้เห็นเนื้อหาแท็บใหม่ตั้งแต่ต้น
+    const scroller = document.querySelector('.app-body');
+    if (scroller && typeof scroller.scrollTo === 'function') {
+        try { scroller.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { scroller.scrollTop = 0; }
+    }
+}
+
 // เรนเดอร์แดชบอร์ดจัดการคำขอฝั่งเจ้าหน้าที่
 function renderStaffDashboard() {
     const listContainer = document.getElementById('staff-requests-list');
@@ -20675,6 +20690,17 @@ function renderStaffDashboard() {
         if (completionPctEl) completionPctEl.innerText = completionPct + '%';
         if (completionBarEl) completionBarEl.style.width = Math.min(completionPct, 100) + '%';
         if (completionDetailEl) completionDetailEl.innerText = `ลงทะเบียนแล้ว ${registeredCount} / ทั้งหมด ${totalExpected} ราย`;
+    }
+
+    // อัปเดต badge จำนวนคำขอบนแท็บ "คำขอ"
+    const tasksBadge = document.getElementById('stab-badge-tasks');
+    if (tasksBadge) {
+        if (requests.length > 0) {
+            tasksBadge.innerText = requests.length;
+            tasksBadge.classList.remove('d-none');
+        } else {
+            tasksBadge.classList.add('d-none');
+        }
     }
 
     if (requests.length === 0) {

@@ -1467,8 +1467,8 @@
                         <button id="btn-exit-staff" class="btn btn-secondary" style="width:auto; margin:0; padding:4px 10px; height:30px; font-size:11px; border-color:var(--brand-red); color:var(--brand-red); font-weight:600;">ออกจากโหมด</button>
                     </div>
 
-                    <!-- Zone KPI Summary Cards -->
-                    <div id="staff-zone-kpis" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+                    <!-- Zone KPI Summary Cards (always visible) -->
+                    <div id="staff-zone-kpis" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
                         <div style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9); border:1.5px solid #00a651; border-radius:10px; padding:10px; text-align:center;">
                             <div style="font-size:18px; font-weight:800; color:#006837; font-family:'Outfit',sans-serif;" id="staff-kpi-plots">0</div>
                             <div style="font-size:9px; color:#555; margin-top:2px;">แปลงในสาย</div>
@@ -1487,109 +1487,126 @@
                         </div>
                     </div>
 
-                    <!-- Pest Outbreak Heatmap Button (GIS) -->
-                    <button type="button" onclick="openPestHeatmap()" style="width:100%; margin:0 0 14px; height:42px; font-size:12.5px; font-weight:700; border:none; border-radius:10px; cursor:pointer; background:linear-gradient(135deg,#e53935,#ff7043); color:#fff; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:var(--shadow-sm);">
-                        🔥 แผนที่ความร้อนการระบาดศัตรูพืช (Heatmap)
-                    </button>
+                    <!-- Professional Tab Bar -->
+                    <div class="staff-tabs" role="tablist">
+                        <button type="button" class="staff-tab-btn active" data-stab="overview" onclick="switchStaffTab('overview', this)"><span class="stab-ico">📋</span><span class="stab-label">ภาพรวม</span></button>
+                        <button type="button" class="staff-tab-btn" data-stab="tasks" onclick="switchStaffTab('tasks', this)"><span class="stab-ico">📨</span><span class="stab-label">คำขอ<span id="stab-badge-tasks" class="staff-tab-badge d-none">0</span></span></button>
+                        <button type="button" class="staff-tab-btn" data-stab="alerts" onclick="switchStaffTab('alerts', this)"><span class="stab-ico">⚠️</span><span class="stab-label">ติดตาม<span id="stab-badge-alerts" class="staff-tab-badge d-none">0</span></span></button>
+                        <button type="button" class="staff-tab-btn" data-stab="reports" onclick="switchStaffTab('reports', this)"><span class="stab-ico">📊</span><span class="stab-label">รายงาน</span></button>
+                    </div>
 
-                    <!-- Progress Bar: Data Completion Rate -->
-                    <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:14px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <span style="font-size:11px; font-weight:700; color:#333;">📋 ความครบถ้วนข้อมูลในสาย</span>
-                            <span id="staff-completion-pct" style="font-size:12px; font-weight:800; color:var(--brand-green);">0%</span>
+                    <!-- ===== TAB: OVERVIEW ===== -->
+                    <div class="staff-tab-panel active" id="stab-overview">
+                        <!-- Progress Bar: Data Completion Rate -->
+                        <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:14px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <span style="font-size:11px; font-weight:700; color:#333;">📋 ความครบถ้วนข้อมูลในสาย</span>
+                                <span id="staff-completion-pct" style="font-size:12px; font-weight:800; color:var(--brand-green);">0%</span>
+                            </div>
+                            <div style="background:#e0e0e0; border-radius:6px; height:8px; overflow:hidden;">
+                                <div id="staff-completion-bar" style="background:linear-gradient(90deg,#00a651,#4caf50); height:100%; width:0%; border-radius:6px; transition:width 0.8s ease;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:9px; color:#999; margin-top:4px;">
+                                <span id="staff-completion-detail">ลงทะเบียนแล้ว 0 / ทั้งหมด 0 ราย</span>
+                                <span>🎯 เป้าหมาย 100%</span>
+                            </div>
                         </div>
-                        <div style="background:#e0e0e0; border-radius:6px; height:8px; overflow:hidden;">
-                            <div id="staff-completion-bar" style="background:linear-gradient(90deg,#00a651,#4caf50); height:100%; width:0%; border-radius:6px; transition:width 0.8s ease;"></div>
+
+                        <!-- สรุปข้อมูลพนักงาน -->
+                        <div id="staff-summary-info" style="background: linear-gradient(135deg, #e3f2fd 0%, #f0f4ff 100%); border: 1px solid #90caf9; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size:12px;">
+                            <span style="color:var(--text-secondary);">📋 กำลังโหลดข้อมูลพนักงาน...</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; font-size:9px; color:#999; margin-top:4px;">
-                            <span id="staff-completion-detail">ลงทะเบียนแล้ว 0 / ทั้งหมด 0 ราย</span>
-                            <span>🎯 เป้าหมาย 100%</span>
+
+                        <!-- Pest Outbreak Heatmap Button (GIS) -->
+                        <button type="button" onclick="openPestHeatmap()" style="width:100%; margin:0; height:46px; font-size:12.5px; font-weight:700; border:none; border-radius:10px; cursor:pointer; background:linear-gradient(135deg,#e53935,#ff7043); color:#fff; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:var(--shadow-sm);">
+                            🔥 แผนที่ความร้อนการระบาดศัตรูพืช (Heatmap)
+                        </button>
+                    </div>
+
+                    <!-- ===== TAB: TASKS / REQUESTS ===== -->
+                    <div class="staff-tab-panel" id="stab-tasks">
+                        <div class="staff-section-title">📨 คำขอสนับสนุนที่รอตรวจสอบ</div>
+                        <div id="staff-requests-empty" class="empty-state d-none">
+                            <div class="empty-icon">📂</div>
+                            <div class="empty-text">ไม่มีคำขอสนับสนุนที่รอการตรวจสอบในสายที่รับผิดชอบ</div>
+                        </div>
+                        <div id="staff-requests-list" class="list-container" style="margin-bottom:14px;">
+                            <!-- Request items will be rendered dynamically by JS -->
+                        </div>
+
+                        <!-- รายงานแจ้งคิวรถตัดอ้อยในสายงาน (Active Harvester Requests) -->
+                        <div id="staff-harvester-requests-section" style="margin-bottom:14px; background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                            <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; text-align:left; display:flex; align-items:center; gap:4px;">
+                                🚜 รายการคำขอคิวรถตัดอ้อยในเขตรับผิดชอบ (<span id="staff-harvester-request-count" style="color:var(--brand-green); font-weight: 800;">0</span>)
+                            </div>
+                            <div id="staff-harvester-requests-list" style="display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+                                <div style="color:#aaa; font-size:10px; padding:12px; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:8px;">ไม่มีรายการคำร้องขอคิวรถตัดในเขตพื้นที่รับผิดชอบ</div>
+                            </div>
+                        </div>
+
+                        <!-- รายการคำขอหลักทรัพย์ & หนี้สินฤดูกาล (Asset & Debt Hub Requests) -->
+                        <div id="staff-asset-debt-requests-section" style="margin-bottom:14px; background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                            <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; text-align:left; display:flex; align-items:center; gap:4px;">
+                                🔒 คำขอหลักทรัพย์ & หนี้สินในสายงาน (<span id="staff-asset-debt-request-count" style="color:var(--brand-blue); font-weight: 800;">0</span>)
+                            </div>
+                            <div id="staff-asset-debt-requests-list" style="display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+                                <div style="color:#aaa; font-size:10px; padding:12px; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:8px;">ไม่มีคำขอหลักทรัพย์ค้างตรวจสอบในสายนี้</div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- สรุปข้อมูลพนักงาน -->
-                    <div id="staff-summary-info" style="background: linear-gradient(135deg, #e3f2fd 0%, #f0f4ff 100%); border: 1px solid #90caf9; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size:12px;">
-                        <span style="color:var(--text-secondary);">📋 กำลังโหลดข้อมูลพนักงาน...</span>
-                    </div>
-
-                    <!-- LINE Report Generator Section -->
-                    <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:14px;">
-                        <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; display:flex; align-items:center; gap:4px; text-align:left;">📢 รายงานด่วนส่ง LINE</div>
-                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:8px;">
-                            <button id="btn-report-individual" class="btn" style="margin:0; font-size:9.5px; padding:6px 2px; height:32px; background:#25d366; color:#fff; border:none; font-weight:700; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; gap:2px; cursor:pointer;">
-                                🧑‍💼 รายบุคคล
-                            </button>
-                            <button id="btn-report-all-staff" class="btn" style="margin:0; font-size:9.5px; padding:6px 2px; height:32px; background:#128c7e; color:#fff; border:none; font-weight:700; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; gap:2px; cursor:pointer;">
-                                👥 พนักงานทั้งหมด
-                            </button>
-                            <button id="btn-report-overall" class="btn" style="margin:0; font-size:9.5px; padding:6px 2px; height:32px; background:#075e54; color:#fff; border:none; font-weight:700; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; gap:2px; cursor:pointer;">
-                                🌾 ภาพรวม
-                            </button>
+                    <!-- ===== TAB: ALERTS / FOLLOW-UP ===== -->
+                    <div class="staff-tab-panel" id="stab-alerts">
+                        <!-- รายงานโรคระบาดเร่งด่วนในสายงาน -->
+                        <div id="staff-pest-alerts-section" style="margin-bottom:14px; background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                            <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; text-align:left; display:flex; align-items:center; gap:4px;">
+                                ⚠️ รายงานพบโรคศัตรูพืชเร่งด่วนในสาย (<span id="staff-pest-alert-count" style="color:var(--brand-red); font-weight: 800;">0</span>)
+                            </div>
+                            <div id="staff-pest-alerts-list" style="display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+                                <div style="color:#aaa; font-size:10px; padding:12px; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:8px;">ไม่มีรายการพบการระบาดในเขตพื้นที่รับผิดชอบ</div>
+                            </div>
                         </div>
-                        <div id="report-output-box" class="d-none" style="margin-top:10px;">
-                            <textarea id="report-text-area" readonly style="width:100%; height:120px; font-size:10px; font-family:monospace; border:1px solid #ccc; border-radius:6px; padding:6px; resize:none; background:#f8f9fa; color:#333; box-sizing:border-box; margin-bottom:6px; text-align:left;"></textarea>
-                            <button id="btn-copy-report" class="btn" style="margin:0; height:32px; font-size:11px; font-weight:700; background:#007bff; color:#fff; width:100%; border:none; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
-                                📋 คัดลอกข้อความรายงาน
-                            </button>
+
+                        <!-- Farmer Completion List -->
+                        <div style="margin-bottom:14px; background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                            <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; text-align:left;">📊 ชาวไร่ที่ยังต้องติดตาม</div>
+                            <div id="staff-farmer-progress-list" style="display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto; -webkit-overflow-scrolling:touch;"></div>
                         </div>
                     </div>
 
-                    <!-- Farmer Completion List (เพิ่มใหม่) -->
-                    <div style="margin-bottom:14px;">
-                        <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; text-align:left;">📊 ชาวไร่ที่ยังต้องติดตาม</div>
-                        <div id="staff-farmer-progress-list" style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; -webkit-overflow-scrolling:touch;"></div>
-                    </div>
-
-                    <!-- รายงานโรคระบาดเร่งด่วนในสายงาน (เพิ่มใหม่) -->
-                    <div id="staff-pest-alerts-section" style="margin-bottom:14px;">
-                        <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; text-align:left; display:flex; align-items:center; gap:4px;">
-                            ⚠️ รายงานพบโรคศัตรูพืชเร่งด่วนในสาย (<span id="staff-pest-alert-count" style="color:var(--brand-red); font-weight: 800;">0</span>)
+                    <!-- ===== TAB: REPORTS / TOOLS ===== -->
+                    <div class="staff-tab-panel" id="stab-reports">
+                        <!-- LINE Report Generator Section -->
+                        <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:14px;">
+                            <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; display:flex; align-items:center; gap:4px; text-align:left;">📢 รายงานด่วนส่ง LINE</div>
+                            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:8px;">
+                                <button id="btn-report-individual" class="btn" style="margin:0; font-size:9.5px; padding:6px 2px; height:32px; background:#25d366; color:#fff; border:none; font-weight:700; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; gap:2px; cursor:pointer;">
+                                    🧑‍💼 รายบุคคล
+                                </button>
+                                <button id="btn-report-all-staff" class="btn" style="margin:0; font-size:9.5px; padding:6px 2px; height:32px; background:#128c7e; color:#fff; border:none; font-weight:700; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; gap:2px; cursor:pointer;">
+                                    👥 พนักงานทั้งหมด
+                                </button>
+                                <button id="btn-report-overall" class="btn" style="margin:0; font-size:9.5px; padding:6px 2px; height:32px; background:#075e54; color:#fff; border:none; font-weight:700; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; gap:2px; cursor:pointer;">
+                                    🌾 ภาพรวม
+                                </button>
+                            </div>
+                            <div id="report-output-box" class="d-none" style="margin-top:10px;">
+                                <textarea id="report-text-area" readonly style="width:100%; height:120px; font-size:10px; font-family:monospace; border:1px solid #ccc; border-radius:6px; padding:6px; resize:none; background:#f8f9fa; color:#333; box-sizing:border-box; margin-bottom:6px; text-align:left;"></textarea>
+                                <button id="btn-copy-report" class="btn" style="margin:0; height:32px; font-size:11px; font-weight:700; background:#007bff; color:#fff; width:100%; border:none; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
+                                    📋 คัดลอกข้อความรายงาน
+                                </button>
+                            </div>
                         </div>
-                        <div id="staff-pest-alerts-list" style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
-                            <div style="color:#aaa; font-size:10px; padding:12px; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:8px;">ไม่มีรายการพบการระบาดในเขตพื้นที่รับผิดชอบ</div>
+
+                        <!-- Staff Zone Analytics -->
+                        <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:80px;">
+                            <div style="font-size:12px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">📋 ตารางเปรียบเทียบชาวไร่ในโซน</div>
+                            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                                <button id="btn-sort-yield" type="button" class="btn btn-secondary" style="margin:0; font-size:10px; height:30px; padding:0 10px;">เรียงตามผลผลิต ↓</button>
+                                <button id="btn-export-zone-csv" type="button" class="btn" style="margin:0; font-size:10px; height:30px; padding:0 12px; background:var(--brand-green); color:#fff;">📤 Export CSV</button>
+                            </div>
+                            <div id="staff-comparison-table" style="overflow-x:auto; font-size:10px;"></div>
                         </div>
-
-
-                    <!-- รายงานแจ้งคิวรถตัดอ้อยในสายงาน (Active Harvester Requests) -->
-                    <div id="staff-harvester-requests-section" style="margin-bottom:14px; background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;">
-                        <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; text-align:left; display:flex; align-items:center; gap:4px;">
-                            🚜 รายการคำขอคิวรถตัดอ้อยในเขตรับผิดชอบ (<span id="staff-harvester-request-count" style="color:var(--brand-green); font-weight: 800;">0</span>)
-                        </div>
-                        <div id="staff-harvester-requests-list" style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
-                            <div style="color:#aaa; font-size:10px; padding:12px; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:8px;">ไม่มีรายการคำร้องขอคิวรถตัดในเขตพื้นที่รับผิดชอบ</div>
-                        </div>
-                    </div>
-
-                    <!-- รายการคำขอหลักทรัพย์ & หนี้สินฤดูกาล (Asset & Debt Hub Requests) -->
-                    <div id="staff-asset-debt-requests-section" style="margin-bottom:14px; background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;">
-                        <div style="font-size:11px; font-weight:700; color:#333; margin-bottom:8px; text-align:left; display:flex; align-items:center; gap:4px;">
-                            🔒 คำขอหลักทรัพย์ & หนี้สินในสายงาน (<span id="staff-asset-debt-request-count" style="color:var(--brand-blue); font-weight: 800;">0</span>)
-                        </div>
-                        <div id="staff-asset-debt-requests-list" style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
-                            <div style="color:#aaa; font-size:10px; padding:12px; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:8px;">ไม่มีคำขอหลักทรัพย์ค้างตรวจสอบในสายนี้</div>
-                        </div>
-                    </div>
-
-
-                    </div>
-
-                    <div id="staff-requests-empty" class="empty-state d-none">
-                        <div class="empty-icon">📂</div>
-                        <div class="empty-text">ไม่มีคำขอสนับสนุนที่รอการตรวจสอบในสายที่รับผิดชอบ</div>
-                    </div>
-
-                    <div id="staff-requests-list" class="list-container">
-                        <!-- Request items will be rendered dynamically by JS -->
-                    </div>
-
-                    <!-- Staff Zone Analytics -->
-                    <div style="padding:0 12px 80px;">
-                        <div style="font-size:12px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">📋 ตารางเปรียบเทียบชาวไร่ในโซน</div>
-                        <div style="display:flex; gap:8px; margin-bottom:8px;">
-                            <button id="btn-sort-yield" type="button" class="btn btn-secondary" style="margin:0; font-size:10px; height:30px; padding:0 10px;">เรียงตามผลผลิต ↓</button>
-                            <button id="btn-export-zone-csv" type="button" class="btn" style="margin:0; font-size:10px; height:30px; padding:0 12px; background:var(--brand-green); color:#fff;">📤 Export CSV</button>
-                        </div>
-                        <div id="staff-comparison-table" style="overflow-x:auto; font-size:10px;"></div>
                     </div>
                 </section>
 
