@@ -8,40 +8,57 @@ var pestReports = [];
 const SmartFarmerDB = {
     db: null,
     
-    init() {
+    // Desired minimum schema version. We always open with a version >= whatever
+    // already exists on the device, so a stale higher version never throws VersionError.
+    DB_VERSION: 2,
+
+    _createStores(db) {
+        if (!db.objectStoreNames.contains('plots')) {
+            db.createObjectStore('plots', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('pest_reports')) {
+            db.createObjectStore('pest_reports', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('audit_log')) {
+            db.createObjectStore('audit_log', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('data_queue')) {
+            db.createObjectStore('data_queue', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('send_log')) {
+            db.createObjectStore('send_log', { keyPath: 'id' });
+        }
+    },
+
+    _open(version) {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open('SmartFarmerDB', 1);
-            
-            request.onupgradeneeded = event => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains('plots')) {
-                    db.createObjectStore('plots', { keyPath: 'id' });
-                }
-                if (!db.objectStoreNames.contains('pest_reports')) {
-                    db.createObjectStore('pest_reports', { keyPath: 'id' });
-                }
-                if (!db.objectStoreNames.contains('audit_log')) {
-                    db.createObjectStore('audit_log', { keyPath: 'id' });
-                }
-                if (!db.objectStoreNames.contains('data_queue')) {
-                    db.createObjectStore('data_queue', { keyPath: 'id' });
-                }
-                if (!db.objectStoreNames.contains('send_log')) {
-                    db.createObjectStore('send_log', { keyPath: 'id' });
-                }
-            };
-            
-            request.onsuccess = event => {
-                this.db = event.target.result;
-                console.log('[IndexedDB] Database initialized successfully.');
-                resolve(this.db);
-            };
-            
-            request.onerror = event => {
-                console.error('[IndexedDB] Database initialization failed:', event.target.error);
-                reject(event.target.error);
-            };
+            const request = version
+                ? indexedDB.open('SmartFarmerDB', version)
+                : indexedDB.open('SmartFarmerDB');
+
+            request.onupgradeneeded = event => this._createStores(event.target.result);
+            request.onsuccess = event => resolve(event.target.result);
+            request.onerror = event => reject(event.target.error);
+            request.onblocked = () => reject(new Error('IndexedDB open blocked (another tab is holding an older version)'));
         });
+    },
+
+    async init() {
+        try {
+            // Probe the existing database to learn its current version without forcing one.
+            const probe = await this._open();
+            const existingVersion = probe.version;
+            probe.close();
+
+            const target = Math.max(existingVersion, this.DB_VERSION);
+            // If the existing version already covers (or exceeds) what we need, just reuse it.
+            this.db = target === existingVersion ? await this._open() : await this._open(target);
+            console.log('[IndexedDB] Database initialized successfully (v' + this.db.version + ').');
+            return this.db;
+        } catch (err) {
+            console.error('[IndexedDB] Database initialization failed:', err);
+            throw err;
+        }
     },
     
     get(storeName, id) {
