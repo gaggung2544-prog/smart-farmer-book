@@ -21,6 +21,9 @@
  *      Script Property `ENFORCE_AUTH = true` -> ระบบเริ่มบังคับสิทธิ์และกรองข้อมูลตามโควตา
  *   7) ถ้ามีปัญหา: ตั้ง ENFORCE_AUTH = false กลับได้ทันที (rollback ไม่ต้อง deploy ใหม่)
  *
+ *   AI แชทที่ปรึกษา: ตั้ง Script Property `GEMINI_API_KEY` = คีย์ Gemini ของคุณ
+ *   (client จะเรียกผ่าน proxy นี้ ไม่ต้องมีคีย์ที่เครื่องผู้ใช้อีกต่อไป)
+ *
  *   หมายเหตุ OTP: ถ้ายังไม่ได้เชื่อมผู้ให้บริการ SMS ให้ตั้ง Script Property
  *   `ALLOW_DEV_OTP = true` ชั่วคราวเพื่อให้ requestOtp คืนรหัส OTP กลับมาทดสอบได้
  *   (อย่าเปิด ALLOW_DEV_OTP บน production จริง)
@@ -313,6 +316,37 @@ function handleCredentialLogin_(data) {
   var exp = Date.now() + (role === 'staff' ? 7 : 30) * 24 * 3600 * 1000;
   var token = signToken_({ sub: id, role: role, exp: exp });
   return jsonOut_({ status: 'success', token: token, role: role, id: id });
+}
+
+// พร็อกซี AI (แชทที่ปรึกษา): เรียก Gemini ด้วยคีย์ที่เก็บใน Script Property `GEMINI_API_KEY`
+// -> client ไม่ต้องถือคีย์อีกต่อไป (เดิมคีย์อยู่ใน localStorage + หลุดใน URL)
+function handleAiChat_(data) {
+  // เปิดโหมดบังคับสิทธิ์แล้วต้องมี token (กันคนนอกยิงใช้จนเปลืองโควตา/ค่าใช้จ่าย)
+  if (isAuthEnforced_()) {
+    var authCtx = resolveAuth_(null, data);
+    if (!authCtx) return jsonOut_({ status: 'error', code: 'AUTH_REQUIRED', message: 'กรุณาเข้าสู่ระบบก่อนใช้ AI' });
+  }
+  var apiKey = props_().getProperty('GEMINI_API_KEY');
+  if (!apiKey) return jsonOut_({ status: 'error', message: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY ในระบบหลังบ้าน' });
+  var contents = data.contents;
+  if (!contents) return jsonOut_({ status: 'error', message: 'ไม่มีเนื้อหาคำถาม' });
+  try {
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey;
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ contents: contents }),
+      muteHttpExceptions: true
+    });
+    var code = resp.getResponseCode();
+    var body = JSON.parse(resp.getContentText());
+    if (code >= 200 && code < 300 && body.candidates && body.candidates[0] && body.candidates[0].content) {
+      return jsonOut_({ status: 'success', text: body.candidates[0].content.parts[0].text });
+    }
+    return jsonOut_({ status: 'error', message: (body.error && body.error.message) || ('AI error ' + code) });
+  } catch (e) {
+    return jsonOut_({ status: 'error', message: e.toString() });
+  }
 }
 
 // รีเซ็ตรหัสผ่านของผู้ใช้ (ลบแถว) — เฉพาะเจ้าหน้าที่ที่มี token เท่านั้น
@@ -670,6 +704,7 @@ function processData(data, e) {
   if (data && data.action === "setCredential") return handleSetCredential_(data);
   if (data && data.action === "credentialLogin") return handleCredentialLogin_(data);
   if (data && data.action === "resetCredential") return handleResetCredential_(data, e);
+  if (data && data.action === "aiChat") return handleAiChat_(data);
 
   // 🔐 ตรวจสิทธิ์การเขียน
   var authCtx = resolveAuth_(e, data);

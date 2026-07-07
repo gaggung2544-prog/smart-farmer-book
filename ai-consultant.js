@@ -141,19 +141,22 @@ async function handleAiChatSubmit(e) {
         // 2. Show Typing Indicator
         showTypingIndicator();
 
-        // 3. Try to call Gemini API if key is available, otherwise use mock
-        const apiKey = localStorage.getItem('smart_farmer_gemini_apikey') || '';
+        // 3. เรียก AI ผ่าน proxy ฝั่งเซิร์ฟเวอร์ (คีย์อยู่ที่ server); ถ้าไม่มี URL/ออฟไลน์ ใช้คำตอบจำลอง
+        const backendUrl = (typeof getBackendUrl === 'function')
+            ? getBackendUrl()
+            : (localStorage.getItem('smart_farmer_sheet_url') || '');
+        const canUseProxy = !!backendUrl && navigator.onLine;
 
-        if (apiKey) {
+        if (canUseProxy) {
             try {
-                const response = await callGeminiAPI(message, aiChatContext, apiKey);
+                const response = await callGeminiAPI(message, aiChatContext);
                 hideTypingIndicator();
                 appendAiMessage(response, true);
             } catch (error) {
-                console.error("Gemini API Error:", error);
+                console.error("AI proxy error:", error);
                 hideTypingIndicator();
                 const fallbackResponse = generateMockAiResponse(message, aiChatContext);
-                appendAiMessage(`ขออภัย ระบบขัดข้องชั่วคราวในการเชื่อมต่อกับ AI หรือ API Key ของคุณไม่ถูกต้อง\n\n(ระบบจำลองคำตอบอัตโนมัติ):\n\n` + fallbackResponse, true);
+                appendAiMessage(`ขออภัย ระบบ AI ขัดข้องชั่วคราว\n\n(ระบบจำลองคำตอบอัตโนมัติ):\n\n` + fallbackResponse, true);
             }
         } else {
             await new Promise(res => setTimeout(res, 1200 + Math.random() * 800)); // 1.2 - 2.0s delay
@@ -177,8 +180,8 @@ async function callGeminiAPI(query, context, apiKey) {
 - อ้างอิงตามหลักวิชาการและแนวคิดเกษตรกรรมสมัยใหม่
 - หากคำถามไม่เกี่ยวกับเรื่องอ้อยหรือการเกษตร ให้ตอบปฏิเสธอย่างสุภาพเพื่อรักษาขอบเขตการทำงานเฉพาะทาง`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    
+    // เรียกผ่าน proxy ฝั่งเซิร์ฟเวอร์ (ไม่มี Gemini key ที่ client อีกต่อไป — เก็บใน Script Properties)
+
     // Construct context details
     let contextStr = "";
     if (context && context.plotName) {
@@ -220,23 +223,31 @@ async function callGeminiAPI(query, context, apiKey) {
         ]
     };
 
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await response.json();
-        if (data.candidates && data.candidates[0].content) {
-            return data.candidates[0].content.parts[0].text;
-        } else {
-            console.error("Gemini API Error:", data);
-            return "ขออภัย ระบบไม่สามารถประมวลผลคำตอบได้ในขณะนี้";
-        }
-    } catch (error) {
-        console.error("Fetch Error:", error);
-        return "เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์ AI";
+    // ส่ง contents ให้ proxy (Apps Script) แล้วให้ server เรียก Gemini ด้วยคีย์ที่เก็บฝั่ง server
+    const proxyUrl = (typeof getBackendUrl === 'function')
+        ? getBackendUrl()
+        : (localStorage.getItem('smart_farmer_sheet_url') || (typeof DEFAULT_SHEET_URL !== 'undefined' ? DEFAULT_SHEET_URL : ''));
+    if (!proxyUrl) throw new Error('ยังไม่ได้ตั้งค่า URL เซิร์ฟเวอร์');
+
+    const proxyPayload = {
+        action: 'aiChat',
+        contents: payload.contents,
+        token: (typeof getAuthToken === 'function') ? getAuthToken() : ''
+    };
+
+    const doFetch = (typeof fetchWithTimeout === 'function') ? fetchWithTimeout : (u, o) => fetch(u, o);
+    const response = await doFetch(proxyUrl, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(proxyPayload)
+    }, 30000);
+    const data = await response.json();
+    if (data && data.status === 'success' && typeof data.text === 'string') {
+        return data.text;
     }
+    // โยน error เพื่อให้ handleAiChatSubmit ตกไปใช้คำตอบจำลอง (mock) แทน
+    throw new Error((data && data.message) || 'AI ไม่ตอบกลับ');
 }
 
 function generateMockAiResponse(query, context) {
