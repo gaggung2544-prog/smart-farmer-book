@@ -737,7 +737,10 @@ async function pullCloudData(isSilent = true) {
             
             console.log(`[Cloud Sync] Retrieved ${cloudPlots.length} plots, ${cloudPests.length} pest reports, and ${deletedItems.length} deleted items.`);
             await mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems, isDeltaSync);
-            
+
+            // บันทึกเวลาที่ดึงข้อมูลสำเร็จ เพื่อโชว์ "อัปเดตล่าสุดเมื่อ..." ให้ผู้ใช้
+            try { localStorage.setItem('smart_farmer_last_sync', String(Date.now())); } catch (e) {}
+
             if (statusText && !isSilent) {
                 statusText.style.color = 'var(--brand-green)';
                 statusText.innerText = '✅ ซิงก์ข้อมูลสองทิศทางสำเร็จเสร็จสิ้น!';

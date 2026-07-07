@@ -381,6 +381,9 @@
 
                     <h1 style="display: inline-flex; align-items: center; gap: 8px;">สรุปข้อมูลไร่อ้อย <button type="button" class="btn-voice-speak" onclick="playFarmerVoice('screen-dashboard')" title="ฟังเสียงแนะนำ">🔊</button></h1>
                     <p class="subtitle">วิเคราะห์ภาพรวมการลงทุนและผลผลิตทั้งหมดของคุณในที่เดียว</p>
+                    <div id="dash-last-sync" onclick="if(typeof pullCloudData==='function')pullCloudData(false)" title="แตะเพื่อดึงข้อมูลล่าสุดจากคลาวด์" style="font-size:11px; color:var(--text-secondary); margin:-6px 0 12px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                        🔄 <span id="dash-last-sync-text">อัปเดตล่าสุด: —</span>
+                    </div>
 
                     <!-- Sugarcane Seasonal Activity Advisor Card (NEW) -->
                     <div id="dash-seasonal-calendar-block" class="card" style="padding: 14px; margin-bottom: 16px; border: 1.5px solid rgba(16, 185, 129, 0.35); background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); box-shadow: var(--shadow-sm); border-radius: 20px;">

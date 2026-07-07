@@ -16107,6 +16107,28 @@ function compressImage(file, callback) {
 // เดิม switchScreen แค่สลับ CSS class ไม่มี history -> กด back = ปิดแอปทั้งตัว
 let __currentScreenId = 'screen-dashboard';
 
+// แปลง timestamp -> ข้อความ "กี่นาที/ชั่วโมง/วันที่แล้ว" ภาษาไทย
+function formatRelativeTime(ts) {
+    if (!ts) return '—';
+    const diff = Date.now() - ts;
+    if (diff < 45000) return 'เมื่อสักครู่';
+    const min = Math.floor(diff / 60000);
+    if (min < 60) return min + ' นาทีที่แล้ว';
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return hr + ' ชั่วโมงที่แล้ว';
+    const day = Math.floor(hr / 24);
+    if (day < 7) return day + ' วันที่แล้ว';
+    return new Date(ts).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+}
+
+// แสดง "อัปเดตล่าสุดเมื่อ..." ให้ผู้ใช้รู้ว่าข้อมูลสดแค่ไหน
+function renderLastSyncIndicator() {
+    const el = document.getElementById('dash-last-sync-text');
+    if (!el) return;
+    const ts = parseInt(localStorage.getItem('smart_farmer_last_sync') || '0', 10);
+    el.innerText = ts ? ('อัปเดตล่าสุด: ' + formatRelativeTime(ts)) : 'ยังไม่เคยดึงข้อมูลจากคลาวด์';
+}
+
 // ปิด modal/overlay ที่เปิดอยู่บนสุด (ใช้กับปุ่ม back) — คืน true ถ้าปิดอะไรไป
 function closeTopmostModal() {
     // เรียงตามลำดับความสำคัญ (บนสุดก่อน); ไม่รวม login-overlay เพราะเป็นด่านเข้าระบบ
@@ -16434,6 +16456,9 @@ function animateCountUpValue(elementId, targetValue, decimals = 0, suffix = '') 
 
 // Render Dashboard Screen
 function renderDashboard() {
+    // อัปเดตข้อความ "อัปเดตล่าสุดเมื่อ..." (ครอบคลุมทุกเส้นทางที่เรนเดอร์ dashboard)
+    renderLastSyncIndicator();
+
     // อัปเดตข้อมูลการแจ้งเตือนกิจกรรมแนะนำรายเดือนตามปฏิทินจริง
     renderSeasonalCalendar();
 
