@@ -15723,18 +15723,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
+    // หยุดทำงานเมื่อแอปอยู่เบื้องหลัง (document.hidden) เพื่อประหยัดแบต/เน็ตมือถือ
     setInterval(() => {
-        if (navigator.onLine) {
+        if (navigator.onLine && !document.hidden) {
             autoSyncPendingData(true);
         }
     }, 30000);
 
     // ดึงข้อมูลใหม่จากคลาวด์อัตโนมัติทุกๆ 120 วินาที (2 นาที) เพื่ออัปเดตสถานะข้ามเครื่องให้พนักงานและชาวไร่
     setInterval(() => {
-        if (navigator.onLine) {
+        if (navigator.onLine && !document.hidden) {
             pullCloudData(true);
         }
     }, 120000);
+
+    // เมื่อกลับมาโฟกัสแอป ให้ซิงก์/ดึงข้อมูลทันที (ชดเชยช่วงที่หยุดตอนอยู่เบื้องหลัง)
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && navigator.onLine) {
+            autoSyncPendingData(true);
+            if (typeof pullCloudData === 'function') pullCloudData(true);
+        }
+    });
     
     // Check staff login status first
     const isStaff = checkStaffLoginStatus();
@@ -16097,7 +16106,41 @@ function compressImage(file, callback) {
 // ── รองรับปุ่มย้อนกลับของเบราว์เซอร์/ฮาร์ดแวร์ (Android) ──
 // เดิม switchScreen แค่สลับ CSS class ไม่มี history -> กด back = ปิดแอปทั้งตัว
 let __currentScreenId = 'screen-dashboard';
+
+// ปิด modal/overlay ที่เปิดอยู่บนสุด (ใช้กับปุ่ม back) — คืน true ถ้าปิดอะไรไป
+function closeTopmostModal() {
+    // เรียงตามลำดับความสำคัญ (บนสุดก่อน); ไม่รวม login-overlay เพราะเป็นด่านเข้าระบบ
+    const modalIds = [
+        'profile-camera-modal',
+        'staff-map-modal',
+        'pdpa-modal',
+        'welcome-success-overlay',
+        'quick-actions-overlay',
+        'settings-modal'
+    ];
+    for (const id of modalIds) {
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('d-none') && getComputedStyle(el).display !== 'none') {
+            el.classList.add('d-none');
+            // cleanup เฉพาะกรณีที่ใช้ทรัพยากร
+            if (id === 'profile-camera-modal' && typeof stopProfileCamera === 'function') {
+                try { stopProfileCamera(); } catch (e) {}
+            }
+            if (id === 'staff-map-modal' && typeof leafletMapInstance !== 'undefined' && leafletMapInstance) {
+                try { leafletMapInstance.remove(); leafletMapInstance = null; } catch (e) {}
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 window.addEventListener('popstate', (e) => {
+    // ถ้ามี modal เปิดอยู่ ให้ปิด modal ก่อน (แทนการเปลี่ยนหน้า/ปิดแอป) แล้วคง history ไว้ที่หน้าเดิม
+    if (closeTopmostModal()) {
+        try { history.pushState({ screenId: __currentScreenId }, ''); } catch (e2) {}
+        return;
+    }
     const target = (e.state && e.state.screenId) ? e.state.screenId : 'screen-dashboard';
     // สลับหน้าโดยไม่ push ซ้ำ (fromHistory=true) กันลูป
     switchScreen(target, true);
@@ -22288,7 +22331,10 @@ function renderAnalyticsAlerts(renderPlots) {
 function startAnalyticsAutoRefresh() {
     stopAnalyticsAutoRefresh();
     fetchAndRenderAnalytics();
-    analyticsRefreshTimer = setInterval(fetchAndRenderAnalytics, 30000);
+    // ข้ามการรีเฟรชเมื่อแอปอยู่เบื้องหลัง (ประหยัดแบต/เน็ต)
+    analyticsRefreshTimer = setInterval(() => {
+        if (!document.hidden) fetchAndRenderAnalytics();
+    }, 30000);
 }
 
 function stopAnalyticsAutoRefresh() {

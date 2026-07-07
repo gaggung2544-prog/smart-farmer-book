@@ -113,45 +113,58 @@ function toggleAiVoice() {
     }
 }
 
+let aiChatInFlight = false; // กันกดส่งซ้ำ/สแปมขณะรอคำตอบ
+
 async function handleAiChatSubmit(e) {
     e.preventDefault();
+    if (aiChatInFlight) return; // มีคำถามค้างอยู่ ยังไม่รับคำถามใหม่
     const input = document.getElementById('ai-chat-input');
     const message = input.value.trim();
     if (!message) return;
 
-    // 1. Add User Message
-    appendUserMessage(message);
-    input.value = '';
+    aiChatInFlight = true;
+    const sendBtn = document.getElementById('btn-ai-submit');
+    if (sendBtn) sendBtn.disabled = true;
+    if (input) input.disabled = true;
 
-    // Log the AI question for user behavior learning and app development [NEW]
-    if (typeof addSystemAuditLog === 'function') {
-        addSystemAuditLog('ASK_AI', 'AI_CONSULTANT', 'ai_assistant', message)
-            .catch(err => console.error("Error logging AI question:", err));
-    }
+    try {
+        // 1. Add User Message
+        appendUserMessage(message);
+        input.value = '';
 
-    // 2. Show Typing Indicator
-    showTypingIndicator();
-
-    // 3. Try to call Gemini API if key is available, otherwise use mock
-    const apiKey = localStorage.getItem('smart_farmer_gemini_apikey') || '';
-    
-    if (apiKey) {
-        try {
-            const response = await callGeminiAPI(message, aiChatContext, apiKey);
-            hideTypingIndicator();
-            appendAiMessage(response, true);
-        } catch (error) {
-            console.error("Gemini API Error:", error);
-            hideTypingIndicator();
-            const fallbackResponse = generateMockAiResponse(message, aiChatContext);
-            appendAiMessage(`ขออภัย ระบบขัดข้องชั่วคราวในการเชื่อมต่อกับ AI หรือ API Key ของคุณไม่ถูกต้อง\n\n(ระบบจำลองคำตอบอัตโนมัติ):\n\n` + fallbackResponse, true);
+        // Log the AI question for user behavior learning and app development [NEW]
+        if (typeof addSystemAuditLog === 'function') {
+            addSystemAuditLog('ASK_AI', 'AI_CONSULTANT', 'ai_assistant', message)
+                .catch(err => console.error("Error logging AI question:", err));
         }
-    } else {
-        setTimeout(() => {
+
+        // 2. Show Typing Indicator
+        showTypingIndicator();
+
+        // 3. Try to call Gemini API if key is available, otherwise use mock
+        const apiKey = localStorage.getItem('smart_farmer_gemini_apikey') || '';
+
+        if (apiKey) {
+            try {
+                const response = await callGeminiAPI(message, aiChatContext, apiKey);
+                hideTypingIndicator();
+                appendAiMessage(response, true);
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                hideTypingIndicator();
+                const fallbackResponse = generateMockAiResponse(message, aiChatContext);
+                appendAiMessage(`ขออภัย ระบบขัดข้องชั่วคราวในการเชื่อมต่อกับ AI หรือ API Key ของคุณไม่ถูกต้อง\n\n(ระบบจำลองคำตอบอัตโนมัติ):\n\n` + fallbackResponse, true);
+            }
+        } else {
+            await new Promise(res => setTimeout(res, 1200 + Math.random() * 800)); // 1.2 - 2.0s delay
             hideTypingIndicator();
             const response = generateMockAiResponse(message, aiChatContext);
             appendAiMessage(response, true);
-        }, 1200 + Math.random() * 800); // 1.2 - 2.0s delay
+        }
+    } finally {
+        aiChatInFlight = false;
+        if (sendBtn) sendBtn.disabled = false;
+        if (input) { input.disabled = false; input.focus(); }
     }
 }
 
