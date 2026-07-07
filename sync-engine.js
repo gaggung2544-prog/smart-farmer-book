@@ -8,57 +8,43 @@ var pestReports = [];
 const SmartFarmerDB = {
     db: null,
     
-    // Desired minimum schema version. We always open with a version >= whatever
-    // already exists on the device, so a stale higher version never throws VersionError.
-    DB_VERSION: 2,
-
-    _createStores(db) {
-        if (!db.objectStoreNames.contains('plots')) {
-            db.createObjectStore('plots', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('pest_reports')) {
-            db.createObjectStore('pest_reports', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('audit_log')) {
-            db.createObjectStore('audit_log', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('data_queue')) {
-            db.createObjectStore('data_queue', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('send_log')) {
-            db.createObjectStore('send_log', { keyPath: 'id' });
-        }
-    },
-
-    _open(version) {
+    init() {
         return new Promise((resolve, reject) => {
-            const request = version
-                ? indexedDB.open('SmartFarmerDB', version)
-                : indexedDB.open('SmartFarmerDB');
-
-            request.onupgradeneeded = event => this._createStores(event.target.result);
-            request.onsuccess = event => resolve(event.target.result);
-            request.onerror = event => reject(event.target.error);
-            request.onblocked = () => reject(new Error('IndexedDB open blocked (another tab is holding an older version)'));
+            const request = indexedDB.open('SmartFarmerDB', 3);
+            
+            request.onupgradeneeded = event => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('plots')) {
+                    db.createObjectStore('plots', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('pest_reports')) {
+                    db.createObjectStore('pest_reports', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('audit_log')) {
+                    db.createObjectStore('audit_log', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('data_queue')) {
+                    db.createObjectStore('data_queue', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('send_log')) {
+                    db.createObjectStore('send_log', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('chat_messages')) {
+                    db.createObjectStore('chat_messages', { keyPath: 'id' });
+                }
+            };
+            
+            request.onsuccess = event => {
+                this.db = event.target.result;
+                console.log('[IndexedDB] Database initialized successfully.');
+                resolve(this.db);
+            };
+            
+            request.onerror = event => {
+                console.error('[IndexedDB] Database initialization failed:', event.target.error);
+                reject(event.target.error);
+            };
         });
-    },
-
-    async init() {
-        try {
-            // Probe the existing database to learn its current version without forcing one.
-            const probe = await this._open();
-            const existingVersion = probe.version;
-            probe.close();
-
-            const target = Math.max(existingVersion, this.DB_VERSION);
-            // If the existing version already covers (or exceeds) what we need, just reuse it.
-            this.db = target === existingVersion ? await this._open() : await this._open(target);
-            console.log('[IndexedDB] Database initialized successfully (v' + this.db.version + ').');
-            return this.db;
-        } catch (err) {
-            console.error('[IndexedDB] Database initialization failed:', err);
-            throw err;
-        }
     },
     
     get(storeName, id) {
@@ -114,8 +100,27 @@ const SmartFarmerDB = {
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
+    },
+
+    // DATA-LOSS FIX: replace-all แบบ atomic — clear + put ทั้งหมดใน transaction เดียว
+    // เดิม saveDataQueue/saveSendLog ทำ clear() (commit ทันที) แล้ว put ทีละตัว (คนละ tx)
+    // ถ้าแอปปิด/crash กลางคัน คิว sync ออฟไลน์หายถาวร วิธีนี้ถ้า tx ล้ม clear() จะถูก rollback ด้วย
+    bulkReplace(storeName, items) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) return reject(new Error("DB not initialized"));
+            const tx = this.db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error('bulkReplace aborted: ' + storeName));
+            store.clear();
+            for (const item of (items || [])) {
+                store.put(item);
+            }
+        });
     }
 };
+window.SmartFarmerDB = SmartFarmerDB;
 
 // ==============================================================================
 // DATA QUEUE & PREVIEW SYSTEM (ระบบคิวข้อมูลและดูรายงานก่อนส่ง)
@@ -141,25 +146,55 @@ async function getSendLog() {
 
 async function saveDataQueue(queue) {
     try {
-        await SmartFarmerDB.clear('data_queue');
-        for (const item of queue) {
-            await SmartFarmerDB.put('data_queue', item);
-        }
+        // atomic clear+put — กันคิว sync หายถ้าแอปปิดกลางคัน (ดู bulkReplace)
+        await SmartFarmerDB.bulkReplace('data_queue', queue);
         if (typeof updateNavBadges === 'function') updateNavBadges();
     } catch (e) {
         console.error('Error saving data queue:', e);
+        if (typeof showToast === 'function') showToast('⚠️ บันทึกคิวข้อมูลไม่สำเร็จ ข้อมูลที่รอส่งอาจไม่ถูกเก็บ', 'warning');
     }
 }
 
 async function saveSendLog(log) {
     try {
-        await SmartFarmerDB.clear('send_log');
-        for (const item of log) {
-            await SmartFarmerDB.put('send_log', item);
-        }
+        await SmartFarmerDB.bulkReplace('send_log', log);
     } catch (e) {
         console.error('Error saving send log:', e);
     }
+}
+
+let debouncedSyncTimeout = null;
+function scheduleDebouncedAutoSync() {
+    if (debouncedSyncTimeout) clearTimeout(debouncedSyncTimeout);
+    debouncedSyncTimeout = setTimeout(() => {
+        autoSyncPendingData(true);
+    }, 2500);
+}
+
+function parseDate(dateStr) {
+    if (!dateStr) return 0;
+    let cleaned = String(dateStr).replace(/-/g, '/');
+    let parts = cleaned.split(/[\s,]+/);
+    if (parts.length > 0) {
+        let dateParts = parts[0].split('/');
+        if (dateParts.length === 3) {
+            let day = parseInt(dateParts[0], 10);
+            let month = parseInt(dateParts[1], 10) - 1;
+            let year = parseInt(dateParts[2], 10);
+            if (year > 2400) year -= 543;
+            
+            let timeParts = [0, 0, 0];
+            if (parts[1]) {
+                let t = parts[1].split(':');
+                timeParts[0] = parseInt(t[0], 10) || 0;
+                timeParts[1] = parseInt(t[1], 10) || 0;
+                timeParts[2] = parseInt(t[2], 10) || 0;
+            }
+            return new Date(year, month, day, timeParts[0], timeParts[1], timeParts[2]).getTime();
+        }
+    }
+    const parsed = Date.parse(dateStr);
+    return isNaN(parsed) ? 0 : parsed;
 }
 
 // เพิ่มหรืออัปเดตข้อมูลในคิว (ป้องกันซ้ำด้วย plotId+type)
@@ -175,7 +210,7 @@ async function queueDataChange(action, data, type) {
         plotId: plotId,
         action: action,
         type: type,
-        data: JSON.parse(JSON.stringify(data)),
+        data: { ...JSON.parse(JSON.stringify(data)), _updaterRole: localStorage.getItem('smart_farmer_staff_id') ? 'STAFF' : 'FARMER' },
         addedAt: new Date().toLocaleString('th-TH'),
         sent: false
     };
@@ -190,9 +225,9 @@ async function queueDataChange(action, data, type) {
     
     if (typeof updatePreviewFAB === 'function') updatePreviewFAB();
     
-    // รันการซิงก์ข้อมูลออโต้เมื่อมีอินเทอร์เน็ต
+    // รันการซิงก์ข้อมูลออโต้เมื่อมีอินเทอร์เน็ต (Debounced)
     if (navigator.onLine) {
-        autoSyncPendingData(true);
+        scheduleDebouncedAutoSync();
     }
 }
 
@@ -278,16 +313,7 @@ async function autoSyncPendingData(quiet = true) {
         // ซิงก์สำเร็จทั้งหมด -> รีเซ็ตตรรกะ Back-off
         syncRetryCount = 0;
         if (syncTimeoutId) clearTimeout(syncTimeoutId);
-        
-        await saveDataQueue(queue);
-        await saveSendLog(log.slice(-200));
-        
-        if (typeof updatePreviewFAB === 'function') updatePreviewFAB();
-        if (typeof renderPreviewContent === 'function') {
-            const activeTab = document.querySelector('.preview-tab.active');
-            renderPreviewContent(activeTab ? activeTab.dataset.type : 'ALL');
-        }
-        
+
         if (!quiet) {
             if (typeof showToast === 'function') {
                 showToast(`ซิงก์ข้อมูลขึ้นคลาวด์สำเร็จ ${successCount} รายการ!`, 'success');
@@ -298,6 +324,19 @@ async function autoSyncPendingData(quiet = true) {
     } catch (err) {
         console.error('[Sync Engine] Sync failed, scheduling retry with back-off:', err);
         scheduleSyncWithBackoff();
+    } finally {
+        // DUPLICATE-PREVENTION: บันทึกความคืบหน้า (flag sent) แม้ sync จะล้มกลางคัน
+        // เดิม persist หลังจบ loop เท่านั้น -> ถ้า item ที่ 3 ล้ม items 1-2 ที่ส่งสำเร็จจะไม่ถูกมาร์ก
+        // -> retry รอบหน้าส่งซ้ำ = ข้อมูลซ้ำบน backend
+        if (successCount > 0) {
+            await saveDataQueue(queue);
+            await saveSendLog(log.slice(-200));
+        }
+        if (typeof updatePreviewFAB === 'function') updatePreviewFAB();
+        if (typeof renderPreviewContent === 'function') {
+            const activeTab = document.querySelector('.preview-tab.active');
+            renderPreviewContent(activeTab ? activeTab.dataset.type : 'ALL');
+        }
     }
 }
 
@@ -356,24 +395,54 @@ async function sendToSheetReliable(url, payload) {
             if (resp.ok) {
                 const text = await resp.text();
                 console.log('[Sync GET] Success:', text.substring(0, 80));
-                return true;
+                try {
+                    const resJson = JSON.parse(text);
+                    if (resJson.status === 'success' || resJson.status === 'ok') {
+                        return true;
+                    } else {
+                        console.error('[Sync GET] Server returned failure:', resJson);
+                        return false;
+                    }
+                } catch(jsonErr) {
+                    // Fallback if response is not JSON
+                    return true;
+                }
             }
         } catch(e) {
             console.warn('[Sync GET] Failed, trying POST fallback:', e.message);
         }
     }
     
+    // 1. พยายามส่งแบบ POST ด้วยโหมด CORS เพื่อให้อ่านสถานะตอบกลับจริงได้
     try {
-        await fetch(url, {
+        const response = await fetch(url, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'cors',
             headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
             body: jsonStr
         });
-        console.log('[Sync POST] Sent successfully (no-cors mode)');
-        return true;
-    } catch(e) {
-        console.error('[Sync POST] Failed:', e);
+        
+        if (response.ok) {
+            const text = await response.text();
+            try {
+                const resJson = JSON.parse(text);
+                if (resJson.status === 'success' || resJson.status === 'ok') {
+                    console.log('[Sync POST CORS] ส่งสำเร็จจริง:', resJson.message || '');
+                    return true;
+                } else {
+                    console.error('[Sync POST CORS] เซิร์ฟเวอร์ตอบกลับว่าล้มเหลว:', resJson);
+                    return false; // รักษาข้อมูลในคิวไว้เนื่องจากหลังบ้านมีปัญหา
+                }
+            } catch (jsonErr) {
+                console.log('[Sync POST CORS] สำเร็จ (การตอบกลับไม่ใช่ JSON):', text.substring(0, 80));
+                return true;
+            }
+        } else {
+            console.error('[Sync POST CORS] เซิร์ฟเวอร์ตอบกลับด้วยรหัส HTTP:', response.status);
+            return false;
+        }
+    } catch (e) {
+        console.warn('[Sync POST CORS] ล้มเหลวหรือติดปัญหา CORS:', e.message);
         return false;
     }
 }
@@ -390,6 +459,62 @@ window.addEventListener('online', () => {
 // ==============================================================================
 // BIDIRECTIONAL SYNC - PULL & MERGE CENTRAL DATABASE (ระบบดึงข้อมูลสองทาง)
 // ==============================================================================
+
+// ฟังก์ชันดึงรายชื่อผู้ใช้/โควตาและจัดทำข้อมูลออฟไลน์ในเครื่อง (รวมทั้ง Bootstrap ขึ้นระบบคลาวด์หากว่างเปล่า)
+async function syncUserDatabase() {
+    const url = localStorage.getItem('smart_farmer_sheet_url');
+    if (!url) return;
+    
+    try {
+        console.log('[User Sync] Fetching user database from Sheets...');
+        const separator = url.includes('?') ? '&' : '?';
+        const response = await fetch(url + separator + 'action=getUsers');
+        if (!response.ok) throw new Error('Failed to fetch user database');
+        
+        const result = await response.json();
+        if (result && result.status === 'success') {
+            const serverUsers = result.users || {};
+            const serverUserCount = Object.keys(serverUsers).length;
+            
+            // กรณีที่ชีตบนคลาวด์ว่างเปล่า (พึ่งติดตั้งใหม่) ให้ทำการดันข้อมูลตัวแปรเริ่มต้นขึ้นไป (Bootstrap)
+            if (serverUserCount === 0 && typeof QUOTA_TO_SUBZONE !== 'undefined' && Object.keys(QUOTA_TO_SUBZONE).length > 10) {
+                console.log("[User Sync] Server user database is empty. Bootstrapping with local QUOTA_TO_SUBZONE...");
+                
+                const bootstrapPayload = {
+                    action: 'INSERT',
+                    type: 'BOOTSTRAP_USERS',
+                    data: QUOTA_TO_SUBZONE
+                };
+                
+                await fetch(url, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                    body: JSON.stringify(bootstrapPayload)
+                });
+                console.log("[User Sync] Bootstrap request sent.");
+            } else if (serverUserCount > 0) {
+                // อัปเดตตารางเก็บผู้ใช้ในเครื่องและอัปเดตตัวแปรระบบ (และจัดรูปแบบสายย่อยให้เป็น 4 หลัก เช่น '0101' เสมอ)
+                const formattedUsers = {};
+                for (const key in serverUsers) {
+                    let val = String(serverUsers[key]).trim();
+                    if (/^\d+$/.test(val)) {
+                        val = val.padStart(4, '0');
+                    }
+                    formattedUsers[key] = val;
+                }
+                localStorage.setItem('smart_farmer_quota_to_subzone', JSON.stringify(formattedUsers));
+                if (typeof QUOTA_TO_SUBZONE !== 'undefined') {
+                    // Merge server updates into offline defaults to preserve reference
+                    Object.assign(QUOTA_TO_SUBZONE, formattedUsers);
+                }
+                console.log(`[User Sync] Synced ${serverUserCount} users from Google Sheets.`);
+            }
+        }
+    } catch (e) {
+        console.warn("[User Sync] Failed to sync user database, using offline cached version:", e);
+    }
+}
 
 async function pullCloudData(isSilent = true) {
     const url = localStorage.getItem('smart_farmer_sheet_url');
@@ -412,18 +537,46 @@ async function pullCloudData(isSilent = true) {
     }
     
     try {
-        console.log('[Cloud Sync] Fetching all data from Sheets backend...');
+        // ดึงข้อมูลบัญชีผู้ใช้ด้วยเพื่ออัปเดตสิทธิ์และสายส่งเสริมล่าสุด
+        await syncUserDatabase();
+
+        console.log('[Cloud Sync] Fetching data from Sheets backend...');
+        
+        // Find latest updatedAt timestamp from local plots to support delta sync
+        const localPlots = await SmartFarmerDB.getAll('plots');
+        let latestTime = 0;
+        let latestTimeStr = '';
+        localPlots.forEach(p => {
+            if (p.updatedAt) {
+                const t = parseDate(p.updatedAt);
+                if (t > latestTime) {
+                    latestTime = t;
+                    latestTimeStr = p.updatedAt;
+                }
+            }
+        });
+
         const separator = url.includes('?') ? '&' : '?';
-        const response = await fetch(url + separator + 'action=pullAll');
+        let fetchUrl = url + separator + 'action=pullAll';
+        if (latestTimeStr) {
+            fetchUrl += '&since=' + encodeURIComponent(latestTimeStr);
+            console.log(`[Cloud Sync] Delta pull since: ${latestTimeStr}`);
+        } else {
+            console.log(`[Cloud Sync] Full pull (no local data or timestamps)`);
+        }
+
+        const response = await fetch(fetchUrl);
         if (!response.ok) throw new Error('Network response was not OK');
         
         const resJson = await response.json();
         if (resJson.status === 'success') {
             const cloudPlots = resJson.plots || [];
             const cloudPests = resJson.pestReports || [];
+            const deletedItems = resJson.deleted || [];
+            const isDeltaSync = !!latestTimeStr;
             
-            console.log(`[Cloud Sync] Retrieved ${cloudPlots.length} plots and ${cloudPests.length} pest reports.`);
-            await mergeCloudDataWithLocal(cloudPlots, cloudPests);
+            console.log(`[Cloud Sync] Retrieved ${cloudPlots.length} plots, ${cloudPests.length} pest reports, and ${deletedItems.length} deleted items.`);
+            await mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems, isDeltaSync);
             
             if (statusText && !isSilent) {
                 statusText.style.color = 'var(--brand-green)';
@@ -471,7 +624,7 @@ async function pullCloudData(isSilent = true) {
     }
 }
 
-async function mergeCloudDataWithLocal(cloudPlots, cloudPests) {
+async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = [], isDeltaSync = false) {
     const queue = await getDataQueue();
     const unsyncedPlotIds = new Set(queue.filter(q => !q.sent && q.type === 'REGISTRATION').map(q => q.plotId));
     const unsyncedPestIds = new Set(queue.filter(q => !q.sent && q.type === 'PEST').map(q => q.plotId));
@@ -489,10 +642,73 @@ async function mergeCloudDataWithLocal(cloudPlots, cloudPests) {
             continue;
         }
         
-        // ผสานฟิลด์กับแปลงเดิมในเครื่องเพื่อป้องกันการสูญหายของข้อมูลวิเคราะห์ต้นทุน/ประมาณการ/ผลผลิตจริง
         const existingPlot = await SmartFarmerDB.get('plots', mappedPlot.id);
-        const mergedPlot = existingPlot ? { ...existingPlot, ...mappedPlot } : mappedPlot;
+        
+        // Check if there is an unread staff reply update for the farmer
+        const isFarmer = !localStorage.getItem('smart_farmer_staff_id');
+        let hasReplyUpdate = false;
+        if (isFarmer && existingPlot) {
+            const oldStatus = existingPlot.supportStatus || '';
+            const oldReplyTime = existingPlot.staffReplyTime || '';
+            const newStatus = mappedPlot.supportStatus || '';
+            const newReplyTime = mappedPlot.staffReplyTime || '';
+            if ((oldStatus !== newStatus || oldReplyTime !== newReplyTime) && newReplyTime !== '') {
+                hasReplyUpdate = true;
+            }
+        }
+
+        // ผสานฟิลด์กับแปลงเดิมในเครื่อง โดยใช้กติกาล่าสุดชนะ (Conflict Resolution)
+        let mergedPlot;
+        if (existingPlot) {
+            const localTime = parseDate(existingPlot.updatedAt);
+            const cloudTime = parseDate(mappedPlot.updatedAt);
+            if (localTime > cloudTime) {
+                console.log(`[Conflict Resolution] Local is newer (${existingPlot.updatedAt} > ${mappedPlot.updatedAt}). Keeping local for plot: ${mappedPlot.id}`);
+                mergedPlot = { ...mappedPlot, ...existingPlot };
+            } else {
+                mergedPlot = { ...existingPlot, ...mappedPlot };
+            }
+        } else {
+            mergedPlot = mappedPlot;
+        }
+
+        if (hasReplyUpdate) {
+            mergedPlot.hasUnreadStaffReply = true;
+            if (typeof showToast === 'function') {
+                showToast(`🔊 เจ้าหน้าที่ตอบกลับคำขอสนับสนุนในแปลง ${mergedPlot.name || mergedPlot.id} แล้ว`, 'info');
+            }
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification("อัปเดตสถานะสนับสนุน", {
+                    body: `เจ้าหน้าที่ได้อัปเดตสถานะคำขอแปลง ${mergedPlot.name || mergedPlot.id} แล้ว`,
+                    icon: 'smart_farmer_logo_192.png'
+                });
+            }
+        }
+        
         await SmartFarmerDB.put('plots', mergedPlot);
+    }
+    
+    // จัดการลบแปลงตามที่ลบบนคลาวด์
+    if (deletedItems && deletedItems.length > 0) {
+        for (const del of deletedItems) {
+            if (del.type === 'REGISTRATION' && del.id) {
+                if (!unsyncedPlotIds.has(del.id)) {
+                    console.log(`[Sync Delete] Deleting plot locally: ${del.id}`);
+                    await SmartFarmerDB.delete('plots', del.id);
+                }
+            }
+        }
+    }
+    
+    // สำหรับกรณี Full Sync ลบแปลงในเครื่องที่ไม่มีในเซิร์ฟเวอร์
+    if (!isDeltaSync) {
+        const cloudPlotIds = new Set(cloudPlots.map(p => p.id || p["Plot ID"] || p["รหัสแปลง"]));
+        for (const localPlot of localPlots) {
+            if (!cloudPlotIds.has(localPlot.id) && !unsyncedPlotIds.has(localPlot.id)) {
+                console.log(`[Sync Delete] Deleting local plot not on server: ${localPlot.id}`);
+                await SmartFarmerDB.delete('plots', localPlot.id);
+            }
+        }
     }
     
     // อัปเดตตัวแปรระบบในเมมโมรี่
@@ -541,7 +757,11 @@ function mapSheetPlotToLocalPlot(sheetPlot) {
         "staffId": ["รหัสพนักงานผู้ตอบ", "พนักงาน"],
         "updatedAt": ["อัปเดตล่าสุด"],
         "offlineCreated": ["เวลาบันทึกจริง"],
-        "isOffline": ["แก้ไขออฟไลน์"]
+        "isOffline": ["แก้ไขออฟไลน์"],
+        "polygonStatus": ["สถานะแผนที่", "polygonStatus"],
+        "factoryPlotCode": ["รหัสแปลงโรงงาน", "factoryPlotCode"],
+        "polygon": ["ข้อมูลขอบเขตแปลง", "ขอบเขตแปลง", "polygon"],
+        "staffVisitDate": ["วันเวลาเข้าตรวจแปลง", "staffVisitDate"]
     };
 
     const mapping = {
@@ -566,7 +786,11 @@ function mapSheetPlotToLocalPlot(sheetPlot) {
         "รหัสพนักงานผู้ตอบ": "staffId",
         "อัปเดตล่าสุด": "updatedAt",
         "เวลาบันทึกจริง (Offline)": "offlineCreated",
-        "แก้ไขออฟไลน์": "isOffline"
+        "แก้ไขออฟไลน์": "isOffline",
+        "สถานะแผนที่ (Polygon)": "polygonStatus",
+        "รหัสแปลงโรงงาน": "factoryPlotCode",
+        "ข้อมูลขอบเขตแปลง (JSON)": "polygon",
+        "วันเวลาเข้าตรวจแปลง": "staffVisitDate"
     };
 
     const localPlot = {};
@@ -604,6 +828,21 @@ function mapSheetPlotToLocalPlot(sheetPlot) {
             localPlot[localKey] = (typeof val === 'string' && val.trim() !== '') ? val.split(", ").map(s => s.trim()) : (Array.isArray(val) ? val : []);
         } else if (localKey === "area") {
             localPlot[localKey] = parseFloat(val) || 0;
+        } else if (localKey === "staffVisitDate") {
+            localPlot[localKey] = val || "";
+        } else if (localKey === "polygon") {
+            if (typeof val === 'string' && val.trim() !== '') {
+                try {
+                    localPlot[localKey] = JSON.parse(val);
+                } catch (e) {
+                    console.error("Error parsing polygon JSON:", e);
+                    localPlot[localKey] = [];
+                }
+            } else if (Array.isArray(val)) {
+                localPlot[localKey] = val;
+            } else {
+                localPlot[localKey] = [];
+            }
         } else {
             localPlot[localKey] = val;
         }
