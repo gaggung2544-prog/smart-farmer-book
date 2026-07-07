@@ -23535,7 +23535,7 @@ function simulateAIPestScanner() {
         const pctRed = (redCount / totalPixels) * 100;
         const pctDark = (darkCount / totalPixels) * 100;
         
-        console.log(`[AI Computer Vision] วิเคราะห์สีพิกเซลใบอ้อยสำเร็จ: เขียว=${pctGreen.toFixed(1)}%, ขาว=${pctWhite.toFixed(1)}%, แดง=${pctRed.toFixed(1)}%, ดำ=${pctDark.toFixed(1)}%`);
+        console.log(`[Color Analysis] วิเคราะห์สัดส่วนสีพิกเซลใบอ้อย: เขียว=${pctGreen.toFixed(1)}%, ขาว=${pctWhite.toFixed(1)}%, แดง=${pctRed.toFixed(1)}%, ดำ=${pctDark.toFixed(1)}%`);
         
         // ตรวจสอบความสมเหตุสมผลว่าเป็นภาพอ้อยหรือไม่ (ต้องมีสีเขียวใบไม้ หรือริ้วสีโรคพืชปนเขียวอย่างมีนัยสำคัญ)
         // เช่น ถ้าถ่ายรูปใบหน้าคน, รถยนต์, หรือผนังปูนเปล่าๆ สัดส่วนสีเขียวและคู่สีใบอ้อยจะต่ำมาก
@@ -23552,7 +23552,7 @@ function simulateAIPestScanner() {
                 if (typeof showToast === 'function') {
                     showToast('❌ ภาพนี้ไม่ใช่อ้อย กรุณาลองใหม่อีกครั้ง', 'danger');
                 }
-                alert('⚠️ ระบบ AI ตรวจวิเคราะห์พบว่า "ภาพที่อัปโหลดไม่ใช่อ้อย"\n\nกรุณาถ่ายภาพใบอ้อยหรือกออ้อยในแปลงให้ชัดเจน แล้วทำรายการใหม่อีกครั้งครับ');
+                alert('⚠️ จากการวิเคราะห์สีของภาพ ดูเหมือนภาพนี้ไม่ใช่อ้อย\n\nกรุณาถ่ายภาพใบอ้อยหรือกออ้อยในแปลงให้ชัดเจน แล้วทำรายการใหม่อีกครั้งครับ');
                 
                 // ล้างค่าข้อมูลรูปภาพเพื่อป้องกันข้อมูลขยะค้างในระบบ
                 previewImg.src = "";
@@ -23563,26 +23563,18 @@ function simulateAIPestScanner() {
             return;
         }
         
-        // วิเคราะห์ทางสถิติหาความน่าจะเป็นสูงสุดของโรค (Color Signature Diagnosis)
+        // ประเมินเบื้องต้นจาก "สัญญาณสี" ของภาพ — ไม่ใช่การวินิจฉัยของ AI
+        // เป็นเพียงตัวช่วยชี้แนวทางว่าอาจเข้าข่ายกลุ่มใด เพื่อให้ผู้ใช้ยืนยันอาการอีกที
+        // (เดิมมี "ความเชื่อมั่น %" ที่สุ่มด้วย Math.random ซึ่งทำให้เข้าใจผิดว่าแม่นยำ — เอาออกแล้ว)
         let diagnosisKey = 'shoot-dead';
-        let confidence = 72.4;
-        
         if (pctWhite > 5.5) {
-            // หากมีสัดส่วนสีขาวปนเหลืองซีดบนผิวใบสูง -> โรคใบขาวอ้อย
-            diagnosisKey = 'leaf-white';
-            confidence = Math.min(80.5 + (pctWhite * 2.2), 98.8);
+            diagnosisKey = 'leaf-white';       // สีขาว/เหลืองซีดมาก -> เข้าข่ายโรคใบขาวอ้อย
         } else if (pctRed > 4.0) {
-            // หากมีจุดหรือริ้วทางยาวสีเน่าแดงบนผิวอ้อย -> โรคเหี่ยวเน่าแดง
-            diagnosisKey = 'leaf-red-rot';
-            confidence = Math.min(78.2 + (pctRed * 2.5), 96.5);
+            diagnosisKey = 'leaf-red-rot';     // ริ้ว/จุดสีเน่าแดง -> เข้าข่ายโรคเหี่ยวเน่าแดง
         } else if (pctDark > 8.0 && pctGreen > 12.0) {
-            // หากมีสีดำเสียหายปนกับใบเขียวในส่วนโคน -> ด้วงหนวดยาวอ้อยกัดกินโคน/ราก
-            diagnosisKey = 'root-eaten';
-            confidence = Math.min(75.0 + (pctDark * 1.8), 94.2);
+            diagnosisKey = 'root-eaten';       // สีดำเสียหายปนใบเขียวส่วนโคน -> เข้าข่ายด้วงหนวดยาว
         } else {
-            // อื่นๆ วิเคราะห์เป็นหนอนกออ้อย (มักเกิดยอดแห้งตายเป็นสีเหลืองน้ำตาล)
-            diagnosisKey = 'shoot-dead';
-            confidence = 70.0 + (pctDark * 1.2) + (Math.random() * 8.0);
+            diagnosisKey = 'shoot-dead';       // อื่นๆ -> เข้าข่ายหนอนกออ้อย
         }
         
         // หน่วงเวลาจำลองเอฟเฟกต์การสแกนด้วยเลเซอร์ 1.5 วินาทีเพื่อให้ดูพรีเมียม
@@ -23597,7 +23589,7 @@ function simulateAIPestScanner() {
                 'root-eaten': 'ด้วงหนวดยาวอ้อย (Sugarcane Longhorn Beetle)'
             };
             
-            predictionText.innerText = `${names[diagnosisKey]} (ความเชื่อมั่น ${confidence.toFixed(1)}%)`;
+            predictionText.innerText = `เข้าข่าย ${names[diagnosisKey]} — ประเมินเบื้องต้นจากสีของภาพ โปรดยืนยันอาการและปรึกษาเจ้าหน้าที่`;
             
             // อัปเดต Dropdown ฟอร์มให้สัมพันธ์กับผลสแกน AI
             const suspectedSelect = document.getElementById('pest-suspected-select');
@@ -23614,7 +23606,7 @@ function simulateAIPestScanner() {
             runPestDiagnosis();
             
             if (typeof showToast === 'function') {
-                showToast(`🤖 AI ตรวจวิเคราะห์ภาพและจำแนกเป็น: ${names[diagnosisKey]}`, 'success');
+                showToast(`🔍 ประเมินเบื้องต้นจากภาพ: ${names[diagnosisKey]} (โปรดยืนยันอาการ)`, 'info');
             }
         }, 1500);
     };
