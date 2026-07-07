@@ -905,8 +905,9 @@ async function pullChatMessages() {
 
         console.log("[Chat Engine] Pulling new messages from Google Sheet...");
 
-        // Call App Script Web App with get_chats action (มี timeout กันค้าง)
-        const url = sheetUrl + (sheetUrl.includes('?') ? '&' : '?') + 'action=get_chats';
+        // Call App Script Web App with get_chats action (มี timeout กันค้าง + แนบ token ให้ backend กรองแชทตามสิทธิ์)
+        let url = sheetUrl + (sheetUrl.includes('?') ? '&' : '?') + 'action=get_chats';
+        if (typeof withAuthParam === 'function') url = withAuthParam(url);
         const doFetch = (typeof fetchWithTimeout === 'function') ? fetchWithTimeout : (u, o) => fetch(u, o);
         const response = await doFetch(url, { method: 'GET', mode: 'cors' }, 20000);
         if (!response.ok) return;
@@ -982,7 +983,7 @@ async function syncChatMessages() {
         const MAX_CHAT_SYNC_ATTEMPTS = 5;
 
         for (let msg of unsyncedMessages) {
-            // Format payload to Google Apps Script
+            // Format payload to Google Apps Script (แนบ token ให้ backend ตรวจสิทธิ์)
             const payload = {
                 action: 'save_chat',
                 id: msg.id,
@@ -995,6 +996,10 @@ async function syncChatMessages() {
                 mediaData: msg.mediaData, // base64
                 targetGroup: msg.targetGroup
             };
+            if (typeof getAuthToken === 'function') {
+                const _t = getAuthToken();
+                if (_t) payload.token = _t;
+            }
 
             try {
                 // Call App Script Web App (มี timeout กันค้าง)

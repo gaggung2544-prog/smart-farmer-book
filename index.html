@@ -85,8 +85,29 @@
                                 <input type="tel" id="login-quota" class="form-input" placeholder="เช่น 12345" maxlength="5" pattern="[0-9]{5}" required style="text-align: center; font-size: 22px; letter-spacing: 6px; font-family: 'Outfit', sans-serif; font-weight: 700; height: 50px;">
                             </div>
                             <div class="form-group" style="margin-top: 12px;">
-                                <label class="form-label" for="login-quota-phone" style="text-align: center; font-weight: 600; margin-bottom:6px;">ระบุเบอร์มือถือเพื่อรับ OTP</label>
-                                <input type="tel" id="login-quota-phone" class="form-input" placeholder="เช่น 0812345678" maxlength="10" pattern="0[0-9]{9}" required style="text-align: center; font-size: 18px; letter-spacing: 2px; font-family: 'Outfit', sans-serif; height: 44px;">
+                                <label class="form-label" style="text-align: center; font-weight: 600; margin-bottom:6px;">🔑 รหัสผ่าน = วันเกิดของคุณ</label>
+                                <div style="display:flex; gap:6px; align-items:stretch;">
+                                    <input type="tel" id="login-quota-dob-day" class="form-input" placeholder="วัน" inputmode="numeric" maxlength="2" required aria-label="วันเกิด: วัน" style="flex:1; text-align:center; font-size:16px; height:48px;">
+                                    <select id="login-quota-dob-month" class="form-input" required aria-label="วันเกิด: เดือน" style="flex:1.5; font-size:15px; height:48px; padding:0 4px;">
+                                        <option value="">เดือน</option>
+                                        <option value="01">มกราคม</option>
+                                        <option value="02">กุมภาพันธ์</option>
+                                        <option value="03">มีนาคม</option>
+                                        <option value="04">เมษายน</option>
+                                        <option value="05">พฤษภาคม</option>
+                                        <option value="06">มิถุนายน</option>
+                                        <option value="07">กรกฎาคม</option>
+                                        <option value="08">สิงหาคม</option>
+                                        <option value="09">กันยายน</option>
+                                        <option value="10">ตุลาคม</option>
+                                        <option value="11">พฤศจิกายน</option>
+                                        <option value="12">ธันวาคม</option>
+                                    </select>
+                                    <input type="tel" id="login-quota-dob-year" class="form-input" placeholder="ปี พ.ศ." inputmode="numeric" maxlength="4" required aria-label="วันเกิด: ปี พ.ศ." style="flex:1.3; text-align:center; font-size:16px; height:48px;">
+                                </div>
+                                <div style="font-size: 11px; color:#4a5d50; text-align:center; margin-top:6px; line-height:1.4; font-family: 'Prompt', sans-serif;">
+                                    🎂 เช่น 1 มกราคม 2501 (ปีเป็น พ.ศ.) — เข้าครั้งแรกระบบจะจดจำไว้เป็นรหัสผ่าน
+                                </div>
                             </div>
                             
                             <!-- PDPA Consent Checkbox -->
@@ -98,7 +119,7 @@
                             </div>
                             
                             <button type="submit" class="btn btn-metallic-gold" style="height: 48px; font-size: 14px; margin-top: 10px; width: 100%;">
-                                📩 ขอรหัส OTP เพื่อเข้าใช้งาน
+                                🔓 เข้าสู่ระบบ
                             </button>
                         </form>
                         <div style="text-align: center; margin-top: 15px; border-top: 1px solid rgba(14, 60, 38, 0.1); padding-top: 12px;">
@@ -118,12 +139,33 @@
                                 </div>
                             </div>
                             <div class="form-group" style="margin-top: 12px;">
-                                <label class="form-label" for="login-staff-phone" style="text-align: center; font-weight: 600; margin-bottom:6px;">ระบุเบอร์มือถือเพื่อรับ OTP</label>
-                                <input type="tel" id="login-staff-phone" class="form-input" placeholder="เช่น 0812345678" maxlength="10" pattern="0[0-9]{9}" required style="text-align: center; font-size: 18px; letter-spacing: 2px; font-family: 'Outfit', sans-serif; height: 44px;">
+                                <label class="form-label" style="text-align: center; font-weight: 600; margin-bottom:6px;">🔑 รหัสผ่าน = วันเกิดของคุณ</label>
+                                <div style="display:flex; gap:6px; align-items:stretch;">
+                                    <input type="tel" id="login-staff-dob-day" class="form-input" placeholder="วัน" inputmode="numeric" maxlength="2" required aria-label="วันเกิด: วัน" style="flex:1; text-align:center; font-size:16px; height:48px;">
+                                    <select id="login-staff-dob-month" class="form-input" required aria-label="วันเกิด: เดือน" style="flex:1.5; font-size:15px; height:48px; padding:0 4px;">
+                                        <option value="">เดือน</option>
+                                        <option value="01">มกราคม</option>
+                                        <option value="02">กุมภาพันธ์</option>
+                                        <option value="03">มีนาคม</option>
+                                        <option value="04">เมษายน</option>
+                                        <option value="05">พฤษภาคม</option>
+                                        <option value="06">มิถุนายน</option>
+                                        <option value="07">กรกฎาคม</option>
+                                        <option value="08">สิงหาคม</option>
+                                        <option value="09">กันยายน</option>
+                                        <option value="10">ตุลาคม</option>
+                                        <option value="11">พฤศจิกายน</option>
+                                        <option value="12">ธันวาคม</option>
+                                    </select>
+                                    <input type="tel" id="login-staff-dob-year" class="form-input" placeholder="ปี พ.ศ." inputmode="numeric" maxlength="4" required aria-label="วันเกิด: ปี พ.ศ." style="flex:1.3; text-align:center; font-size:16px; height:48px;">
+                                </div>
+                                <div style="font-size: 11px; color:#4a5d50; text-align:center; margin-top:6px; line-height:1.4; font-family: 'Prompt', sans-serif;">
+                                    🎂 เช่น 1 มกราคม 2501 (ปีเป็น พ.ศ.) — เข้าครั้งแรกระบบจะจดจำไว้เป็นรหัสผ่าน
+                                </div>
                             </div>
-                            
+
                             <button type="submit" class="btn btn-metallic-green" style="height: 48px; font-size: 14px; margin-top: 15px; width: 100%;">
-                                📩 ขอรหัส OTP เพื่อเข้าใช้โหมดพนักงาน
+                                🔓 เข้าใช้โหมดพนักงาน
                             </button>
                             
                             <div style="text-align: center; margin-top: 15px; border-top: 1px solid rgba(14, 60, 38, 0.1); padding-top: 12px;">
@@ -1917,6 +1959,22 @@
                                 <i class="fas fa-search" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#999; font-size:12px;"></i>
                             </div>
                             <div id="staff-farmer-progress-list" style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; -webkit-overflow-scrolling:touch;"></div>
+                        </div>
+
+                        <!-- เครื่องมือรีเซ็ตรหัสผ่าน (วันเกิด) สำหรับผู้ใช้ที่ลืม/ตั้งผิด -->
+                        <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:14px;">
+                            <div style="font-size:12px; font-weight:700; color:#333; margin-bottom:8px; text-align:left;">🔑 รีเซ็ตรหัสผ่าน (วันเกิด) ให้ผู้ใช้ที่ลืม</div>
+                            <div style="display:flex; gap:6px; align-items:stretch; margin-bottom:6px; flex-wrap:wrap;">
+                                <select id="reset-cred-role" class="form-input" style="flex:1 1 120px; font-size:12px; height:40px; padding:0 4px;">
+                                    <option value="farmer">ชาวไร่ (โควตา)</option>
+                                    <option value="staff">เจ้าหน้าที่ (รหัสพนักงาน)</option>
+                                </select>
+                                <input type="tel" id="reset-cred-id" class="form-input" placeholder="เลขโควตา/รหัสพนักงาน" inputmode="numeric" style="flex:2 1 140px; font-size:13px; height:40px; text-align:center;">
+                                <button id="btn-reset-cred" type="button" class="btn" style="margin:0; flex:1 1 90px; height:40px; font-size:12px; font-weight:700; background:var(--brand-red,#dc3545); color:#fff; border:none; border-radius:6px; cursor:pointer;">รีเซ็ต</button>
+                            </div>
+                            <div style="font-size:11px; color:#777; text-align:left; line-height:1.4;">
+                                ℹ️ ระบบไม่แสดงรหัสจริง (เก็บแบบเข้ารหัส) — หลังรีเซ็ต ผู้ใช้จะกรอกวันเกิดใหม่ได้เองตอนล็อกอินครั้งถัดไป
+                            </div>
                         </div>
 
                         <!-- Staff Zone Comparison (Cards instead of horizontal scrolling table) -->

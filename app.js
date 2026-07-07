@@ -17619,7 +17619,9 @@ function populateDaySelector() {
 }
 
 function triggerSimulatedOTP(role, quotaOrId, phoneNumber) {
-    generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    // INTERIM: ใช้รหัสคงที่ 123456 สำหรับชาวไร่ไปก่อน (ยังไม่ต่อ SMS/OTP จริงฝั่งเซิร์ฟเวอร์)
+    // TODO: เมื่อเชื่อม serverRequestOtp/serverVerifyOtp + SMS แล้ว ให้เปลี่ยนกลับเป็น OTP จริง
+    generatedOTP = "123456";
     tempLoginRole = role;
     tempQuotaOrStaffId = quotaOrId;
     tempLoginPhone = phoneNumber;
@@ -17777,6 +17779,69 @@ function triggerSimulatedOTP(role, quotaOrId, phoneNumber) {
     document.getElementById('login-step-otp').classList.remove('d-none');
 }
 
+// แปลงวันเกิดที่ผู้ใช้กรอก -> เลข 8 หลัก DDMMYYYY (พ.ศ.) เช่น "01/01/2501" -> "01012501"
+function normalizeDobDigits(str) {
+    if (!str) return '';
+    const parts = String(str).split(/\D+/).filter(Boolean);
+    if (parts.length === 3) {
+        const dd = parts[0].padStart(2, '0');
+        const mm = parts[1].padStart(2, '0');
+        const yyyy = parts[2];
+        if (dd.length === 2 && mm.length === 2 && yyyy.length === 4) return dd + mm + yyyy;
+        return '';
+    }
+    const digits = String(str).replace(/\D/g, '');
+    return digits.length === 8 ? digits : '';
+}
+function isValidDobDigits(d) {
+    if (!/^\d{8}$/.test(d)) return false;
+    const dd = +d.slice(0, 2), mm = +d.slice(2, 4), yy = +d.slice(4);
+    return dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12 && yy >= 2400 && yy <= 2600; // ปี พ.ศ.
+}
+
+// อ่านวันเกิดจาก 3 ช่อง (วัน/เดือน/ปี) แล้วรวมเป็น 8 หลัก DDMMYYYY; คืน '' ถ้ากรอกไม่ครบ
+function readDobFromFields(prefix) {
+    const dayEl = document.getElementById(prefix + '-day');
+    const monthEl = document.getElementById(prefix + '-month');
+    const yearEl = document.getElementById(prefix + '-year');
+    if (!dayEl || !monthEl || !yearEl) return '';
+    const dd = String(dayEl.value || '').replace(/\D/g, '').padStart(2, '0');
+    const mm = String(monthEl.value || '').replace(/\D/g, '');
+    const yyyy = String(yearEl.value || '').replace(/\D/g, '');
+    if (dd.length !== 2 || mm.length !== 2 || yyyy.length !== 4) return '';
+    return dd + mm + yyyy;
+}
+
+// พยายามล็อกอินด้วยวันเกิด: ครั้งแรกตั้งรหัสอัตโนมัติ (TOFU), ครั้งต่อไปต้องตรง
+// คืน { proceed: bool, message } — proceed=false เฉพาะเมื่อเซิร์ฟเวอร์ยืนยันว่า "วันเกิดไม่ถูกต้อง"
+// (backend เก่า/ออฟไลน์/ยังไม่เปิดใช้ = proceed แบบ interim เพื่อไม่ให้ระบบพัง)
+async function attemptDobLogin(role, id, dob) {
+    if (typeof serverCredentialLogin !== 'function') return { proceed: true };
+    let r;
+    try {
+        r = await serverCredentialLogin(role, id, dob);
+    } catch (e) {
+        return { proceed: true };
+    }
+    if (r && r.status === 'success' && r.token) return { proceed: true };
+    if (r && r.code === 'NO_CREDENTIAL') {
+        // ครั้งแรก: ตั้งวันเกิดเป็นรหัสผ่าน แล้วล็อกอินซ้ำเพื่อรับ token
+        try {
+            const s = await serverSetCredential(role, id, dob);
+            if (s && s.status === 'success') {
+                const r2 = await serverCredentialLogin(role, id, dob);
+                if (r2 && r2.status === 'success') return { proceed: true };
+            }
+        } catch (e) { /* ปล่อยผ่านแบบ interim */ }
+        return { proceed: true };
+    }
+    if (r && r.code === 'BAD_CREDENTIAL') {
+        return { proceed: false, message: r.message || 'วันเกิดไม่ถูกต้อง' };
+    }
+    // backend เก่า / ออฟไลน์ / error ทั่วไป -> interim proceed
+    return { proceed: true };
+}
+
 function proceedPostOTPLogin() {
     if (tempLoginRole === 'FARMER') {
         localStorage.setItem('smart_farmer_quota', tempQuotaOrStaffId);
@@ -17915,27 +17980,36 @@ function setupEventListeners() {
         // 1. Quota Login Form Submit (Updated for OTP)
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const consentCheckbox = document.getElementById('login-pdpa-consent');
             if (consentCheckbox && !consentCheckbox.checked) {
                 alert('กรุณากดยอมรับนโยบายคุ้มครองข้อมูลส่วนบุคคล (PDPA) เพื่อเข้าสู่ระบบ');
                 return;
             }
-            
+
             const quotaInput = document.getElementById('login-quota').value.trim();
-            const phoneInput = document.getElementById('login-quota-phone').value.trim();
-            
-            if (quotaInput.length === 5 && /^\d+$/.test(quotaInput)) {
-                if (phoneInput.length === 10 && /^0\d+$/.test(phoneInput)) {
-                    triggerSimulatedOTP('FARMER', quotaInput, phoneInput);
-                } else {
-                    alert('กรุณากรอกเบอร์มือถือให้ถูกต้อง (ตัวเลข 10 หลักขึ้นต้นด้วย 0)');
-                }
-            } else {
+
+            if (!(quotaInput.length === 5 && /^\d+$/.test(quotaInput))) {
                 alert('กรุณากรอกเลขโควตาเป็นตัวเลข 5 หลัก');
+                return;
             }
+            const dob = readDobFromFields('login-quota-dob');
+            if (!isValidDobDigits(dob)) {
+                alert('กรุณาเลือกวันเกิดให้ครบ วัน / เดือน / ปี (พ.ศ.) เช่น 1 มกราคม 2501');
+                return;
+            }
+
+            // ล็อกอินด้วยวันเกิด (ครั้งแรกตั้งอัตโนมัติ) — ครั้งต่อไปต้องกรอกวันเกิดเดิมให้ตรง
+            const res = await attemptDobLogin('farmer', quotaInput, dob);
+            if (!res.proceed) {
+                alert('❌ ' + (res.message || 'วันเกิดไม่ถูกต้อง กรุณาลองใหม่'));
+                return;
+            }
+            tempLoginRole = 'FARMER';
+            tempQuotaOrStaffId = quotaInput;
+            proceedPostOTPLogin();
         });
     }
 
@@ -18393,6 +18467,7 @@ function setupEventListeners() {
                 addSystemAuditLog('LOGOUT', 'IDENTITY', oldQuota, `ชาวไร่ออกจากระบบโควตา: ${oldQuota}`);
                 localStorage.removeItem('smart_farmer_quota');
                 localStorage.removeItem('smart_farmer_profile');
+                if (typeof clearAuthToken === 'function') clearAuthToken(); // ล้าง auth token เมื่อออกจากระบบ
                 settingsModal.classList.add('d-none');
                 checkQuotaLogin();
                 updatePreviewFAB();
@@ -18748,6 +18823,7 @@ function setupEventListeners() {
                 localStorage.removeItem('smart_farmer_staff_id');
                 localStorage.removeItem('smart_farmer_quota');
                 localStorage.removeItem('smart_farmer_profile');
+                if (typeof clearAuthToken === 'function') clearAuthToken(); // ล้าง auth token เมื่อออกจากระบบ
                 checkQuotaLogin();
             }
         });
@@ -19184,6 +19260,44 @@ function setupEventListeners() {
         });
     }
 
+    // เจ้าหน้าที่รีเซ็ตรหัสผ่าน (วันเกิด) ให้ผู้ใช้ที่ลืม/ตั้งผิด
+    const btnResetCred = document.getElementById('btn-reset-cred');
+    if (btnResetCred) {
+        btnResetCred.addEventListener('click', async () => {
+            const roleEl = document.getElementById('reset-cred-role');
+            const idEl = document.getElementById('reset-cred-id');
+            const role = roleEl ? roleEl.value : 'farmer';
+            const id = idEl ? idEl.value.trim() : '';
+            if (!id) {
+                alert('กรุณากรอกเลขโควตา/รหัสพนักงานที่ต้องการรีเซ็ต');
+                return;
+            }
+            const who = role === 'staff' ? 'เจ้าหน้าที่' : 'ชาวไร่';
+            if (!confirm(`ยืนยันรีเซ็ตรหัสผ่านของ${who} รหัส ${id}?\nผู้ใช้จะต้องตั้งวันเกิดใหม่ตอนล็อกอินครั้งถัดไป`)) return;
+            if (typeof serverResetCredential !== 'function') {
+                alert('ฟังก์ชันรีเซ็ตยังไม่พร้อมใช้งาน');
+                return;
+            }
+            btnResetCred.disabled = true;
+            const prevText = btnResetCred.innerText;
+            btnResetCred.innerText = '...';
+            const r = await serverResetCredential(role, id);
+            btnResetCred.disabled = false;
+            btnResetCred.innerText = prevText;
+            if (r && r.status === 'success') {
+                if (typeof showToast === 'function') showToast('✅ ' + (r.message || 'รีเซ็ตรหัสผ่านสำเร็จ'), 'success');
+                else alert('✅ ' + (r.message || 'รีเซ็ตรหัสผ่านสำเร็จ'));
+                if (idEl) idEl.value = '';
+            } else if (r && r.code === 'FORBIDDEN') {
+                alert('🔒 ' + (r.message || 'เฉพาะเจ้าหน้าที่ที่เข้าสู่ระบบแล้วเท่านั้น (โปรดล็อกอินเจ้าหน้าที่ใหม่หลังอัปเดตระบบหลังบ้าน)'));
+            } else if (r && r.offline) {
+                alert('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่เมื่อออนไลน์');
+            } else {
+                alert('❌ ' + (r && r.message ? r.message : 'รีเซ็ตไม่สำเร็จ (ตรวจสอบว่าอัปเดตระบบหลังบ้านแล้ว)'));
+            }
+        });
+    }
+
     const btnCloseMapModal = document.getElementById('close-map-modal-btn');
     if (btnCloseMapModal) {
         btnCloseMapModal.addEventListener('click', () => {
@@ -19231,23 +19345,34 @@ function setupEventListeners() {
         });
     }
 
-        // Staff Direct Login Form Submit (Updated for OTP)
+        // Staff Direct Login Form Submit (รหัสผ่านเจ้าหน้าที่ + ขอ token จริงจากเซิร์ฟเวอร์)
     const staffDirectLoginForm = document.getElementById('staff-direct-login-form');
     if (staffDirectLoginForm) {
-        staffDirectLoginForm.addEventListener('submit', (e) => {
+        staffDirectLoginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const staffIdInput = document.getElementById('login-staff-id').value.trim();
-            const phoneInput = document.getElementById('login-staff-phone').value.trim();
-            
-            if (validateStaffId(staffIdInput)) {
-                if (phoneInput.length === 10 && /^0\d+$/.test(phoneInput)) {
-                    triggerSimulatedOTP('STAFF', staffIdInput, phoneInput);
-                } else {
-                    alert('กรุณากรอกเบอร์มือถือให้ถูกต้อง (ตัวเลข 10 หลักขึ้นต้นด้วย 0)');
-                }
-            } else {
+
+            if (!validateStaffId(staffIdInput)) {
                 alert('⚠️ รหัสพนักงานไม่ถูกต้องหรือไม่มีในระบบ (กรุณาตรวจสอบรหัสสาย 4 หลักกับต้นสังกัด)');
+                return;
             }
+            const dob = readDobFromFields('login-staff-dob');
+            if (!isValidDobDigits(dob)) {
+                alert('กรุณาเลือกวันเกิดให้ครบ วัน / เดือน / ปี (พ.ศ.) เช่น 1 มกราคม 2501');
+                return;
+            }
+
+            // ล็อกอินด้วยวันเกิด (ครั้งแรกตั้งอัตโนมัติ) — ครั้งต่อไปต้องกรอกวันเกิดเดิมให้ตรง
+            const res = await attemptDobLogin('staff', staffIdInput, dob);
+            if (!res.proceed) {
+                showToast('🔒 ' + (res.message || 'วันเกิดไม่ถูกต้อง'), 'warning');
+                return;
+            }
+
+            // เข้าสู่ระบบผ่าน flow เดิม (จัดการ overlay/สถานะ/welcome ให้ครบ)
+            tempLoginRole = 'STAFF';
+            tempQuotaOrStaffId = staffIdInput;
+            proceedPostOTPLogin();
         });
     }
 

@@ -410,6 +410,101 @@ function syncToGoogleSheet(action, data, type = "REGISTRATION") {
     }
 }
 
+// อ่าน auth token ที่ได้จากการล็อกอิน (ใช้แนบไปกับคำขอเพื่อให้ backend ตรวจสิทธิ์+กรองข้อมูลตามโควตา)
+function getAuthToken() {
+    try { return localStorage.getItem('smart_farmer_token') || ''; } catch (e) { return ''; }
+}
+
+// ต่อ ?t=<token> เข้ากับ URL (ใช้กับคำขออ่านแบบ GET เช่น pullAll/getUsers/get_chats)
+function withAuthParam(url) {
+    const t = getAuthToken();
+    if (!t) return url;
+    return url + (url.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(t);
+}
+
+// เก็บ/ล้าง token
+function setAuthToken(t) { try { if (t) localStorage.setItem('smart_farmer_token', t); } catch (e) {} }
+function clearAuthToken() { try { localStorage.removeItem('smart_farmer_token'); } catch (e) {} }
+
+// resolve URL ปลายทางของ backend (ใช้ค่าที่ตั้งไว้ หรือ DEFAULT_SHEET_URL จาก app.js)
+function getBackendUrl() {
+    return localStorage.getItem('smart_farmer_sheet_url') ||
+           (typeof DEFAULT_SHEET_URL !== 'undefined' ? DEFAULT_SHEET_URL : '');
+}
+
+// ยิง action ผ่าน POST text/plain (ไม่มี CORS preflight, และไม่ทำให้รหัสผ่าน/OTP หลุดใน URL)
+async function _postAuthAction(payload) {
+    const base = getBackendUrl();
+    if (!base) return { status: 'error', message: 'ยังไม่ได้ตั้งค่า URL เซิร์ฟเวอร์' };
+    const res = await fetchWithTimeout(base, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(payload)
+    }, 15000);
+    return await res.json();
+}
+
+// ===== Auth API (ให้ UI ล็อกอินเรียกใช้) — ได้ token จริงจากเซิร์ฟเวอร์เมื่อออนไลน์ =====
+// เจ้าหน้าที่: ล็อกอินด้วยรหัสพนักงาน + รหัสผ่าน (ตั้งใน Script Properties: STAFF_PASSCODES)
+async function serverStaffLogin(staffId, passcode) {
+    try {
+        const data = await _postAuthAction({ action: 'staffLogin', staffId: staffId, passcode: passcode });
+        if (data && data.status === 'success' && data.token) {
+            setAuthToken(data.token);
+            return { ok: true, token: data.token, role: 'staff' };
+        }
+        return { ok: false, message: (data && data.message) || 'เข้าสู่ระบบไม่สำเร็จ' };
+    } catch (e) {
+        return { ok: false, offline: true, message: e.message };
+    }
+}
+// ชาวไร่: ขอ OTP (เซิร์ฟเวอร์สร้าง+ส่ง SMS ถ้าตั้งค่าไว้; โหมดทดสอบคืน devOtp เมื่อ ALLOW_DEV_OTP=true)
+async function serverRequestOtp(quota, phone) {
+    try {
+        return await _postAuthAction({ action: 'requestOtp', quota: quota, phone: phone });
+    } catch (e) {
+        return { status: 'error', offline: true, message: e.message };
+    }
+}
+// ชาวไร่: ยืนยัน OTP -> ได้ token
+async function serverVerifyOtp(quota, otp) {
+    try {
+        const data = await _postAuthAction({ action: 'verifyOtp', quota: quota, otp: otp });
+        if (data && data.status === 'success' && data.token) setAuthToken(data.token);
+        return data;
+    } catch (e) {
+        return { status: 'error', offline: true, message: e.message };
+    }
+}
+
+// ===== รหัสผ่าน = วันเกิด (พ.ศ., DDMMYYYY) — ใช้ได้ทั้งชาวไร่และเจ้าหน้าที่ =====
+// role: 'farmer' | 'staff'; id: quota หรือ staffId; dob: '01012501'
+async function serverCredentialLogin(role, id, dob) {
+    try {
+        const data = await _postAuthAction({ action: 'credentialLogin', role: role, id: id, dob: dob });
+        if (data && data.status === 'success' && data.token) setAuthToken(data.token);
+        return data;
+    } catch (e) {
+        return { status: 'error', offline: true, message: e.message };
+    }
+}
+async function serverSetCredential(role, id, dob, oldDob) {
+    try {
+        return await _postAuthAction({ action: 'setCredential', role: role, id: id, dob: dob, oldDob: oldDob || '' });
+    } catch (e) {
+        return { status: 'error', offline: true, message: e.message };
+    }
+}
+// เจ้าหน้าที่รีเซ็ตรหัสผ่านของผู้ใช้ (แนบ staff token; backend ตรวจว่าเป็น staff จริง)
+async function serverResetCredential(targetRole, targetId) {
+    try {
+        return await _postAuthAction({ action: 'resetCredential', targetRole: targetRole, targetId: targetId, token: getAuthToken() });
+    } catch (e) {
+        return { status: 'error', offline: true, message: e.message };
+    }
+}
+
 // ยิง fetch พร้อม timeout (ยกเลิกเองเมื่อเกินเวลา) กันคำขอค้างจนคิว/หน้าจอแฮงก์ตลอดไป
 function fetchWithTimeout(resource, options = {}, timeoutMs = 20000) {
     if (typeof AbortController === 'undefined') {
@@ -434,6 +529,11 @@ function looksLikeHtmlOrLogin(text) {
 }
 
 async function sendToSheetReliable(url, payload) {
+    // แนบ token เข้าไปใน payload (backend อ่านจาก data.token) — ไม่มี token = ส่งเหมือนเดิม
+    const token = getAuthToken();
+    if (token && payload && typeof payload === 'object' && !payload.token) {
+        payload = { ...payload, token: token };
+    }
     const jsonStr = JSON.stringify(payload);
     const hasImage = jsonStr.includes('data:image') || jsonStr.length > 6000;
     
@@ -528,7 +628,7 @@ async function syncUserDatabase() {
     try {
         console.log('[User Sync] Fetching user database from Sheets...');
         const separator = url.includes('?') ? '&' : '?';
-        const response = await fetchWithTimeout(url + separator + 'action=getUsers', {}, 20000);
+        const response = await fetchWithTimeout(withAuthParam(url + separator + 'action=getUsers'), {}, 20000);
         if (!response.ok) throw new Error('Failed to fetch user database');
         
         const result = await response.json();
@@ -625,7 +725,7 @@ async function pullCloudData(isSilent = true) {
             console.log(`[Cloud Sync] Full pull (no local data or timestamps)`);
         }
 
-        const response = await fetchWithTimeout(fetchUrl, {}, 30000);
+        const response = await fetchWithTimeout(withAuthParam(fetchUrl), {}, 30000);
         if (!response.ok) throw new Error('Network response was not OK');
         
         const resJson = await response.json();
