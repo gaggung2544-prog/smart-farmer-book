@@ -1325,7 +1325,7 @@
 
                 <!-- SCREEN 5: COST LOGGER -->
                 <section id="screen-cost" class="screen">
-                    <h1 style="display: inline-flex; align-items: center; gap: 8px;">บันทึกต้นทุนการผลิต <button type="button" class="btn-voice-speak" onclick="playFarmerVoice('screen-cost')" title="ฟังเสียงแนะนำ">🔊</button></h1>
+                    <h1 style="display: inline-flex; align-items: center; gap: 8px;"><button type="button" onclick="switchScreen('screen-dashboard')" title="กลับหน้าแรก" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-primary); padding:0 4px;">🔙</button>บันทึกต้นทุนการผลิต <button type="button" class="btn-voice-speak" onclick="playFarmerVoice('screen-cost')" title="ฟังเสียงแนะนำ">🔊</button></h1>
                     <p class="subtitle">บันทึกค่าใช้จ่ายและต้นทุนสะสมจริงของแปลง เพื่อใช้วัดจุดคุ้มทุนที่แท้จริง</p>
 
                     <div id="cost-empty-state" class="empty-state d-none">
@@ -1515,7 +1515,7 @@
 
                 <!-- SCREEN 6: HARVEST LOGGER -->
                 <section id="screen-harvest" class="screen">
-                    <h1 style="display: inline-flex; align-items: center; gap: 8px;">บันทึกการตัดอ้อย <button type="button" class="btn-voice-speak" onclick="playFarmerVoice('screen-harvest')" title="ฟังเสียงแนะนำ">🔊</button></h1>
+                    <h1 style="display: inline-flex; align-items: center; gap: 8px;"><button type="button" onclick="switchScreen('screen-dashboard')" title="กลับหน้าแรก" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-primary); padding:0 4px;">🔙</button>บันทึกการตัดอ้อย <button type="button" class="btn-voice-speak" onclick="playFarmerVoice('screen-harvest')" title="ฟังเสียงแนะนำ">🔊</button></h1>
                     <p class="subtitle">บันทึกข้อมูลการตัดส่งเข้าโรงงาน เพื่อสรุปกำไรขาดทุนจริงของฤดูกาล</p>
 
                     <div id="har-empty-state" class="empty-state d-none">
@@ -1710,7 +1710,7 @@
                 </section>
                 <!-- SCREEN 7: PEST & DISEASE DIAGNOSIS (NEW) -->
                 <section id="screen-pest" class="screen">
-                    <h1 style="display: inline-flex; align-items: center; gap: 8px;">รายงานและวินิจฉัยโรคอ้อย <button type="button" class="btn-voice-speak" onclick="playFarmerVoice('screen-pest')" title="ฟังเสียงแนะนำ">🔊</button></h1>
+                    <h1 style="display: inline-flex; align-items: center; gap: 8px;"><button type="button" onclick="switchScreen('screen-dashboard')" title="กลับหน้าแรก" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-primary); padding:0 4px;">🔙</button>รายงานและวินิจฉัยโรคอ้อย <button type="button" class="btn-voice-speak" onclick="playFarmerVoice('screen-pest')" title="ฟังเสียงแนะนำ">🔊</button></h1>
                     <p class="subtitle">บันทึกรายงานแจ้งโรคพืชอ้อยและศัตรูพืชระบาดในแปลง พร้อมดึงตำแหน่งพิกัดและถ่ายภาพสแกน AI ส่งเตือนพนักงานส่งเสริม</p>
 
                     <div class="step-container">
@@ -2023,7 +2023,8 @@
 
                 <!-- ===== SCREEN: ANALYTICS DASHBOARD ===== -->
                 <div id="screen-analytics" class="screen">
-                    <div class="screen-header">
+                    <div class="screen-header" style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" onclick="switchScreen('screen-dashboard')" title="กลับหน้าแรก" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-primary); padding:0 4px;">🔙</button>
                         <h2 style="margin:0; font-size:16px; font-weight:700;">📊 สถิติวิเคราะห์</h2>
                     </div>
                     <div class="screen-body" style="padding:12px; overflow-y:auto;">

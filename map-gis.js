@@ -753,17 +753,19 @@ function initSmartMappingSystem() {
     const mapDiv = document.getElementById('leaflet-smart-map');
     if (!mapDiv) return;
 
-    // Reset map instance if it already exists
+    // ถ้าแผนที่ถูกสร้างไว้แล้ว -> ใช้ instance เดิม (ไม่โหลด tile ใหม่ / ไม่รีเซ็ต zoom-pan ที่ผู้ใช้ตั้งไว้)
+    // เดิม remove()+recreate ทุกครั้งที่เข้า = โหลด tile ใหม่ + เด้งกลับ zoom เริ่มต้น เปลืองเน็ต
     if (smartMapInstance) {
-        if (smartMapGpsWatchId !== null) {
-            navigator.geolocation.clearWatch(smartMapGpsWatchId);
-            smartMapGpsWatchId = null;
-        }
-        smartMapUserMarker = null;
-        smartMapUserAccuracyCircle = null;
-        
-        smartMapInstance.remove();
-        smartMapInstance = null;
+        // รีเฟรชเฉพาะข้อมูล layer เผื่อ plots เปลี่ยนหลังซิงก์ (render*SmartLayer เคลียร์ของเก่าก่อนแล้ว)
+        populateSmartMapFilterOptions();
+        renderYieldSmartLayer();
+        renderSoilSmartLayer();
+        renderPestSmartLayer();
+        renderStaffSmartLayer();
+        updateSmartMapStatsUI();
+        // ปรับขนาดใหม่ เผื่อ container ถูกซ่อน/เปลี่ยนขนาดตอนอยู่หน้าอื่น
+        setTimeout(() => { if (smartMapInstance) smartMapInstance.invalidateSize(); }, 200);
+        return;
     }
 
     // Default center: Kuchinarai area default
