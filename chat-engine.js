@@ -8,7 +8,29 @@ let mediaRecorder = null;
 let audioChunks = [];
 let recordingTimerInterval = null;
 let recordingDuration = 0;
+let activeMicStream = null; // เก็บ stream ไมค์ไว้ปิด track เมื่อยกเลิก/ออกจากหน้าแชท (กันไมค์ค้างเปิด)
 let isOfflineMode = !navigator.onLine;
+
+// ===== ความปลอดภัย: กัน XSS จากข้อความ/สื่อที่ดึงมาจากผู้ใช้คนอื่นผ่าน Google Sheet =====
+// escape อักขระ HTML ก่อนนำไปแสดง (ใช้กับ caption/ชื่อผู้ส่ง ฯลฯ)
+function escapeHtml(str) {
+    if (str === undefined || str === null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+// อนุญาตเฉพาะ media URL ที่ปลอดภัย (data:image|video|audio, blob:, http(s):) — กัน javascript: และการหลุด attribute
+function sanitizeMediaUrl(url) {
+    if (!url) return '';
+    const u = String(url).trim();
+    if (/^data:(image|video|audio)\//i.test(u) || /^blob:/i.test(u) || /^https?:\/\//i.test(u)) {
+        return u;
+    }
+    return '';
+}
 
 // Pre-populated mock announcements for rich first impression
 const MOCK_CHAT_MESSAGES = [
@@ -75,12 +97,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 
     // Periodic Sync & Pull (every 10 seconds)
+    // หยุด poll เมื่อแอปอยู่เบื้องหลัง (document.hidden) เพื่อประหยัดแบต/เน็ตบนมือถือ
     setInterval(() => {
-        if (!isOfflineMode) {
+        if (!isOfflineMode && !document.hidden) {
             syncChatMessages();
             pullChatMessages();
         }
     }, 10000);
+
+    // เมื่อกลับมาโฟกัสแอป ให้ดึงข้อความล่าสุดทันที (ชดเชยช่วงที่หยุด poll ตอนอยู่เบื้องหลัง)
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && !isOfflineMode) {
+            pullChatMessages();
+        }
+    });
 });
 
 // 1. Initialize user from localStorage
@@ -284,36 +314,70 @@ async function renderChatMessages() {
         
         const metaDiv = document.createElement('div');
         metaDiv.className = 'chat-meta';
-        metaDiv.innerHTML = `${headerText} • ${timeStr} ${msg.isSynced ? '✓' : '⏳'}`;
+        // escapeHtml ชื่อผู้ส่ง (headerText มาจาก msg.senderName ของผู้ใช้อื่น) กัน XSS; ส่วน timeStr/emoji ปลอดภัย
+        const syncMark = msg.isSynced === 1 ? '✓' : (msg.isSynced === 2 ? '⚠️' : '⏳');
+        metaDiv.innerHTML = `${escapeHtml(headerText)} • ${timeStr} ${syncMark}`;
 
         const bubbleDiv = document.createElement('div');
         bubbleDiv.className = 'chat-bubble';
 
-        // Render message content based on type
+        // caption helper: สร้าง element ด้วย textContent (ปลอดภัยจาก XSS เสมอ)
+        const makeCaption = (txt) => {
+            const c = document.createElement('div');
+            c.style.marginTop = '6px';
+            c.style.fontSize = '12px';
+            c.textContent = txt;
+            return c;
+        };
+        const safeMedia = sanitizeMediaUrl(msg.mediaData);
+
+        // Render message content based on type — สร้างผ่าน DOM ไม่ใช้ string interpolation กับข้อมูลผู้ใช้
         if (msg.type === 'text') {
             bubbleDiv.innerText = msg.message;
         } else if (msg.type === 'image') {
-            bubbleDiv.innerHTML = `
-                <div style="font-size:11px; margin-bottom:4px;">📷 ส่งรูปภาพ:</div>
-                <img src="${msg.mediaData}" class="chat-image-attachment" onclick="openPhotoModal('${msg.mediaData}')">
-                ${msg.message ? `<div style="margin-top:6px; font-size:12px;">${msg.message}</div>` : ''}
-            `;
+            const label = document.createElement('div');
+            label.style.cssText = 'font-size:11px; margin-bottom:4px;';
+            label.textContent = '📷 ส่งรูปภาพ:';
+            bubbleDiv.appendChild(label);
+            if (safeMedia) {
+                const img = document.createElement('img');
+                img.src = safeMedia;
+                img.className = 'chat-image-attachment';
+                img.addEventListener('click', () => openPhotoModal(safeMedia));
+                bubbleDiv.appendChild(img);
+            }
+            if (msg.message) bubbleDiv.appendChild(makeCaption(msg.message));
         } else if (msg.type === 'video') {
-            bubbleDiv.innerHTML = `
-                <div style="font-size:11px; margin-bottom:4px;">🎥 ส่งวิดีโอ:</div>
-                <video src="${msg.mediaData}" controls class="chat-video-attachment"></video>
-                ${msg.message ? `<div style="margin-top:6px; font-size:12px;">${msg.message}</div>` : ''}
-            `;
+            const label = document.createElement('div');
+            label.style.cssText = 'font-size:11px; margin-bottom:4px;';
+            label.textContent = '🎥 ส่งวิดีโอ:';
+            bubbleDiv.appendChild(label);
+            if (safeMedia) {
+                const vid = document.createElement('video');
+                vid.src = safeMedia;
+                vid.controls = true;
+                vid.className = 'chat-video-attachment';
+                bubbleDiv.appendChild(vid);
+            }
+            if (msg.message) bubbleDiv.appendChild(makeCaption(msg.message));
         } else if (msg.type === 'audio') {
-            bubbleDiv.innerHTML = `
-                <div style="font-size:11px; margin-bottom:2px;">🎤 ข้อความเสียง:</div>
-                <div class="chat-audio-player">
-                    <button type="button" onclick="playChatAudio(this, '${msg.mediaData}')" style="width:24px; height:24px; border-radius:50%; border:none; background:#0F2C59; color:#fff; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;">▶</button>
-                    <div style="height:3px; background:rgba(0,0,0,0.1); flex:1; border-radius:2px; position:relative; overflow:hidden;">
-                        <div class="play-progress" style="width:0%; height:100%; background:#bf953f; position:absolute; top:0; left:0;"></div>
-                    </div>
-                </div>
-            `;
+            const label = document.createElement('div');
+            label.style.cssText = 'font-size:11px; margin-bottom:2px;';
+            label.textContent = '🎤 ข้อความเสียง:';
+            bubbleDiv.appendChild(label);
+            const player = document.createElement('div');
+            player.className = 'chat-audio-player';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = '▶';
+            btn.style.cssText = 'width:24px; height:24px; border-radius:50%; border:none; background:#0F2C59; color:#fff; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;';
+            if (safeMedia) btn.addEventListener('click', () => playChatAudio(btn, safeMedia));
+            const track = document.createElement('div');
+            track.style.cssText = 'height:3px; background:rgba(0,0,0,0.1); flex:1; border-radius:2px; position:relative; overflow:hidden;';
+            track.innerHTML = '<div class="play-progress" style="width:0%; height:100%; background:#bf953f; position:absolute; top:0; left:0;"></div>';
+            player.appendChild(btn);
+            player.appendChild(track);
+            bubbleDiv.appendChild(player);
         }
 
         msgRow.appendChild(metaDiv);
@@ -394,6 +458,7 @@ async function toggleAudioRecording() {
         // Start Recording
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            activeMicStream = stream; // เก็บไว้เผื่อยกเลิก/ออกจากหน้าเพื่อปิด track
             audioChunks = [];
             mediaRecorder = new MediaRecorder(stream);
             
@@ -435,6 +500,7 @@ async function toggleAudioRecording() {
 
                 // Stop microphone tracks
                 stream.getTracks().forEach(track => track.stop());
+                activeMicStream = null;
             };
 
             mediaRecorder.start();
@@ -459,6 +525,8 @@ async function toggleAudioRecording() {
                 mediaRecorder.onstop = null; // Discard blob
                 mediaRecorder.stop();
                 mediaRecorder = null;
+                // ปิด track ไมค์ด้วย (เดิม set onstop=null ทำให้ track ไม่ถูกปิด = ไมค์ค้างเปิด)
+                if (activeMicStream) { activeMicStream.getTracks().forEach(t => t.stop()); activeMicStream = null; }
                 recordBar.classList.add('d-none');
                 inputForm.classList.remove('d-none');
             };
@@ -484,6 +552,24 @@ function stopRecordingTimer() {
         clearInterval(recordingTimerInterval);
         recordingTimerInterval = null;
     }
+}
+
+// ยกเลิกการอัดเสียงที่ค้างอยู่ + ปิดไมค์ (เรียกตอนออกจากหน้าแชทกลางคัน กันไมค์เปิดค้าง)
+function cancelActiveRecording() {
+    if (!mediaRecorder && !activeMicStream) return;
+    stopRecordingTimer();
+    if (mediaRecorder) {
+        try { mediaRecorder.onstop = null; if (mediaRecorder.state !== 'inactive') mediaRecorder.stop(); } catch (e) {}
+        mediaRecorder = null;
+    }
+    if (activeMicStream) {
+        activeMicStream.getTracks().forEach(t => t.stop());
+        activeMicStream = null;
+    }
+    const recordBar = document.getElementById('chat-recording-bar');
+    const inputForm = document.getElementById('chat-input-form');
+    if (recordBar) recordBar.classList.add('d-none');
+    if (inputForm) inputForm.classList.remove('d-none');
 }
 
 // 7. Handle Image Upload & Compression
@@ -668,8 +754,15 @@ function openPhotoModal(imgSrc) {
     modal.style.justifyContent = 'center';
     modal.style.alignItems = 'center';
     modal.style.cursor = 'zoom-out';
-    modal.innerHTML = `<img src="${imgSrc}" style="max-width:95%; max-height:90vh; border-radius:8px; border:2px solid white; box-shadow:0 0 20px rgba(0,0,0,0.5);">`;
-    
+    // สร้าง <img> ผ่าน DOM + sanitize src กัน XSS จาก imgSrc ที่มาจากข้อความผู้ใช้อื่น
+    const safeSrc = sanitizeMediaUrl(imgSrc);
+    if (safeSrc) {
+        const fullImg = document.createElement('img');
+        fullImg.src = safeSrc;
+        fullImg.style.cssText = 'max-width:95%; max-height:90vh; border-radius:8px; border:2px solid white; box-shadow:0 0 20px rgba(0,0,0,0.5);';
+        modal.appendChild(fullImg);
+    }
+
     modal.onclick = () => {
         document.body.removeChild(modal);
     };
@@ -812,12 +905,11 @@ async function pullChatMessages() {
 
         console.log("[Chat Engine] Pulling new messages from Google Sheet...");
 
-        // Call App Script Web App with get_chats action
+        // Call App Script Web App with get_chats action (มี timeout กันค้าง)
         const url = sheetUrl + (sheetUrl.includes('?') ? '&' : '?') + 'action=get_chats';
-        const response = await fetch(url, {
-            method: 'GET',
-            mode: 'cors'
-        });
+        const doFetch = (typeof fetchWithTimeout === 'function') ? fetchWithTimeout : (u, o) => fetch(u, o);
+        const response = await doFetch(url, { method: 'GET', mode: 'cors' }, 20000);
+        if (!response.ok) return;
 
         const resData = await response.json();
         if (resData.status === 'success' && Array.isArray(resData.messages)) {
@@ -886,6 +978,9 @@ async function syncChatMessages() {
 
         console.log(`[Chat Engine] Syncing ${unsyncedMessages.length} messages to Google Sheet...`);
 
+        const doFetch = (typeof fetchWithTimeout === 'function') ? fetchWithTimeout : (u, o) => fetch(u, o);
+        const MAX_CHAT_SYNC_ATTEMPTS = 5;
+
         for (let msg of unsyncedMessages) {
             // Format payload to Google Apps Script
             const payload = {
@@ -901,24 +996,43 @@ async function syncChatMessages() {
                 targetGroup: msg.targetGroup
             };
 
-            // Call App Script Web App
-            const response = await fetch(sheetUrl, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'text/plain;charset=UTF-8'
-                },
-                body: JSON.stringify(payload)
-            });
+            try {
+                // Call App Script Web App (มี timeout กันค้าง)
+                const response = await doFetch(sheetUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                    body: JSON.stringify(payload)
+                }, 30000);
 
-            const resData = await response.json();
-            if (resData.status === 'success' || resData.status === 'ok') {
-                // Mark as synced
-                msg.isSynced = 1;
+                const text = await response.text();
+                let ok = false;
+                try {
+                    const resData = JSON.parse(text);
+                    ok = (resData.status === 'success' || resData.status === 'ok');
+                } catch (_) { ok = false; } // ตอบไม่ใช่ JSON (หน้า HTML/error) = ยังไม่สำเร็จ
+
+                if (ok) {
+                    msg.isSynced = 1;
+                    msg.syncAttempts = 0;
+                } else {
+                    msg.syncAttempts = (msg.syncAttempts || 0) + 1;
+                    // เลิกส่งหลังพยายามหลายครั้ง กัน re-upload base64 media ซ้ำทุก 10 วิไม่รู้จบ
+                    if (msg.syncAttempts >= MAX_CHAT_SYNC_ATTEMPTS) {
+                        msg.isSynced = 2; // failed/ยกเลิก (ไม่ถูกดึงเป็น unsynced อีก)
+                        console.warn(`[Chat Engine] เลิกส่งข้อความ ${msg.id} หลังพยายาม ${MAX_CHAT_SYNC_ATTEMPTS} ครั้ง`);
+                    }
+                }
                 await SmartFarmerDB.put('chat_messages', msg);
+            } catch (err) {
+                // network/timeout: นับ attempt แล้วไปข้อความถัดไป (ไม่ให้ทั้ง batch ค้างเพราะข้อความเดียว)
+                msg.syncAttempts = (msg.syncAttempts || 0) + 1;
+                if (msg.syncAttempts >= MAX_CHAT_SYNC_ATTEMPTS) msg.isSynced = 2;
+                try { await SmartFarmerDB.put('chat_messages', msg); } catch (_) {}
+                console.warn(`[Chat Engine] ส่งข้อความ ${msg.id} ล้มเหลว (ครั้งที่ ${msg.syncAttempts}):`, err.message);
             }
         }
-        
+
         // Re-render
         renderChatMessages();
 

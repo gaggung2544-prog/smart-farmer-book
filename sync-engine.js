@@ -37,9 +37,25 @@ const SmartFarmerDB = {
             request.onsuccess = event => {
                 this.db = event.target.result;
                 console.log('[IndexedDB] Database initialized successfully.');
+                // ถ้าแท็บอื่นเปิดฐานข้อมูลเวอร์ชันใหม่กว่า -> ปิด connection นี้เพื่อไม่ให้ค้าง (block) การอัปเกรด
+                this.db.onversionchange = () => {
+                    this.db.close();
+                    console.warn('[IndexedDB] Version change from another tab — connection closed.');
+                    if (typeof showToast === 'function') {
+                        showToast('แอปถูกอัปเดตในแท็บอื่น กรุณารีเฟรชหน้านี้', 'warning');
+                    }
+                };
                 resolve(this.db);
             };
-            
+
+            // เกิดเมื่อมีแท็บอื่นถือ connection เวอร์ชันเก่าค้างอยู่ ทำให้เปิด/อัปเกรดไม่ได้ (เคยทำแอปค้าง)
+            request.onblocked = () => {
+                console.warn('[IndexedDB] Open blocked by another tab holding an older version.');
+                if (typeof showToast === 'function') {
+                    showToast('กรุณาปิดแท็บ Smart Farmer อื่นๆ แล้วรีเฟรชหน้านี้', 'warning');
+                }
+            };
+
             request.onerror = event => {
                 console.error('[IndexedDB] Database initialization failed:', event.target.error);
                 reject(event.target.error);
@@ -237,8 +253,16 @@ async function queueDataChange(action, data, type) {
 
 let syncRetryCount = 0;
 let syncTimeoutId = null;
+let isSyncingNow = false; // ป้องกันรันซ้อน (online listener + interval + debounce + back-off ยิงพร้อมกัน = ส่งข้อมูลซ้ำ)
 
 async function autoSyncPendingData(quiet = true) {
+    // Re-entrancy guard: ถ้ากำลังซิงก์อยู่ ห้ามเริ่มรอบใหม่ทับ มิฉะนั้นอ่านคิวชุดเดิมแล้ว POST ซ้ำ = แถวซ้ำบน backend
+    if (isSyncingNow) {
+        console.log('[Sync Engine] Sync already in progress — skipping concurrent run.');
+        return;
+    }
+    isSyncingNow = true;
+    try {
     const url = localStorage.getItem('smart_farmer_sheet_url');
     const queue = await getDataQueue();
     const pending = queue.filter(q => !q.sent);
@@ -338,6 +362,9 @@ async function autoSyncPendingData(quiet = true) {
             renderPreviewContent(activeTab ? activeTab.dataset.type : 'ALL');
         }
     }
+    } finally {
+        isSyncingNow = false; // ปลดล็อกให้รอบถัดไป (รวมถึง back-off retry) ทำงานได้
+    }
 }
 
 function scheduleSyncWithBackoff() {
@@ -383,6 +410,29 @@ function syncToGoogleSheet(action, data, type = "REGISTRATION") {
     }
 }
 
+// ยิง fetch พร้อม timeout (ยกเลิกเองเมื่อเกินเวลา) กันคำขอค้างจนคิว/หน้าจอแฮงก์ตลอดไป
+function fetchWithTimeout(resource, options = {}, timeoutMs = 20000) {
+    if (typeof AbortController === 'undefined') {
+        return fetch(resource, options); // เบราว์เซอร์เก่ามาก: ยิงแบบเดิม
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(resource, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+}
+
+// ตรวจว่า text ที่ตอบกลับเป็นหน้า HTML / หน้า login ของ Google หรือไม่
+// (Apps Script ที่ตั้งค่าผิดมักตอบ HTTP 200 พร้อมหน้า HTML แทน JSON -> ต้องถือว่า "ยังไม่สำเร็จ")
+function looksLikeHtmlOrLogin(text) {
+    if (!text || !text.trim()) return true; // ตอบว่างเปล่า = ไม่ยืนยันว่าเก็บข้อมูลแล้ว
+    const t = text.trim().toLowerCase();
+    return t.startsWith('<!doctype') || t.startsWith('<html') ||
+           t.includes('<head') || t.includes('<body') ||
+           t.includes('accounts.google.com') || t.includes('sign in to continue') ||
+           t.includes('moved temporarily') || t.includes('temporary redirect') ||
+           t.includes('authorization required');
+}
+
 async function sendToSheetReliable(url, payload) {
     const jsonStr = JSON.stringify(payload);
     const hasImage = jsonStr.includes('data:image') || jsonStr.length > 6000;
@@ -391,10 +441,10 @@ async function sendToSheetReliable(url, payload) {
         try {
             const separator = url.includes('?') ? '&' : '?';
             const getUrl = url + separator + 'p=' + encodeURIComponent(jsonStr);
-            const resp = await fetch(getUrl, { method: 'GET' });
+            const resp = await fetchWithTimeout(getUrl, { method: 'GET' }, 20000);
             if (resp.ok) {
                 const text = await resp.text();
-                console.log('[Sync GET] Success:', text.substring(0, 80));
+                console.log('[Sync GET] Response:', text.substring(0, 80));
                 try {
                     const resJson = JSON.parse(text);
                     if (resJson.status === 'success' || resJson.status === 'ok') {
@@ -404,7 +454,12 @@ async function sendToSheetReliable(url, payload) {
                         return false;
                     }
                 } catch(jsonErr) {
-                    // Fallback if response is not JSON
+                    // ตอบกลับไม่ใช่ JSON: ถ้าเป็นหน้า HTML/login ให้ถือว่า "ล้มเหลว" คงข้อมูลไว้ในคิว
+                    // (เดิม return true -> ข้อมูลถูกมาร์กว่าส่งแล้วทั้งที่ backend ไม่ได้เก็บ = ข้อมูลหายเงียบ)
+                    if (looksLikeHtmlOrLogin(text)) {
+                        console.error('[Sync GET] Non-JSON HTML/login response -> treat as FAILURE, keeping in queue');
+                        return false;
+                    }
                     return true;
                 }
             }
@@ -415,13 +470,13 @@ async function sendToSheetReliable(url, payload) {
     
     // 1. พยายามส่งแบบ POST ด้วยโหมด CORS เพื่อให้อ่านสถานะตอบกลับจริงได้
     try {
-        const response = await fetch(url, {
+        const response = await fetchWithTimeout(url, {
             method: 'POST',
             mode: 'cors',
             headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
             body: jsonStr
-        });
-        
+        }, 30000);
+
         if (response.ok) {
             const text = await response.text();
             try {
@@ -434,6 +489,11 @@ async function sendToSheetReliable(url, payload) {
                     return false; // รักษาข้อมูลในคิวไว้เนื่องจากหลังบ้านมีปัญหา
                 }
             } catch (jsonErr) {
+                // ตอบกลับไม่ใช่ JSON: หน้า HTML/login = ยังไม่สำเร็จจริง -> คงไว้ในคิวกันข้อมูลหาย
+                if (looksLikeHtmlOrLogin(text)) {
+                    console.error('[Sync POST CORS] Non-JSON HTML/login response -> treat as FAILURE, keeping in queue');
+                    return false;
+                }
                 console.log('[Sync POST CORS] สำเร็จ (การตอบกลับไม่ใช่ JSON):', text.substring(0, 80));
                 return true;
             }
@@ -468,7 +528,7 @@ async function syncUserDatabase() {
     try {
         console.log('[User Sync] Fetching user database from Sheets...');
         const separator = url.includes('?') ? '&' : '?';
-        const response = await fetch(url + separator + 'action=getUsers');
+        const response = await fetchWithTimeout(url + separator + 'action=getUsers', {}, 20000);
         if (!response.ok) throw new Error('Failed to fetch user database');
         
         const result = await response.json();
@@ -486,12 +546,12 @@ async function syncUserDatabase() {
                     data: QUOTA_TO_SUBZONE
                 };
                 
-                await fetch(url, {
+                await fetchWithTimeout(url, {
                     method: 'POST',
                     mode: 'cors',
                     headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                     body: JSON.stringify(bootstrapPayload)
-                });
+                }, 30000);
                 console.log("[User Sync] Bootstrap request sent.");
             } else if (serverUserCount > 0) {
                 // อัปเดตตารางเก็บผู้ใช้ในเครื่องและอัปเดตตัวแปรระบบ (และจัดรูปแบบสายย่อยให้เป็น 4 หลัก เช่น '0101' เสมอ)
@@ -565,7 +625,7 @@ async function pullCloudData(isSilent = true) {
             console.log(`[Cloud Sync] Full pull (no local data or timestamps)`);
         }
 
-        const response = await fetch(fetchUrl);
+        const response = await fetchWithTimeout(fetchUrl, {}, 30000);
         if (!response.ok) throw new Error('Network response was not OK');
         
         const resJson = await response.json();
@@ -624,6 +684,26 @@ async function pullCloudData(isSilent = true) {
     }
 }
 
+// ตรวจว่าเป็นค่า "ว่าง" ที่ไม่ควรเอาไปทับข้อมูลเดิม (แต่ยอมให้ false / 0 ผ่านเพราะเป็นค่าจริง)
+function isEmptyMergeVal(v) {
+    if (v === undefined || v === null) return true;
+    if (typeof v === 'string' && v.trim() === '') return true;
+    if (Array.isArray(v) && v.length === 0) return true;
+    return false;
+}
+
+// ผสานข้อมูลจาก cloud ทับ local โดย "ข้ามฟิลด์ที่ cloud ว่าง" เพื่อไม่ให้เซลล์ว่างในชีตลบข้อมูลดีในเครื่องทิ้ง
+// (mapSheetPlotToLocalPlot เติม "" ให้ทุกฟิลด์ที่หาไม่เจอ -> {...local, ...cloud} เดิมทำให้ข้อมูลหายเงียบ)
+function mergeCloudOverLocal(localObj, cloudObj) {
+    const out = { ...localObj };
+    for (const k in cloudObj) {
+        if (!isEmptyMergeVal(cloudObj[k])) {
+            out[k] = cloudObj[k];
+        }
+    }
+    return out;
+}
+
 async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = [], isDeltaSync = false) {
     const queue = await getDataQueue();
     const unsyncedPlotIds = new Set(queue.filter(q => !q.sent && q.type === 'REGISTRATION').map(q => q.plotId));
@@ -662,11 +742,15 @@ async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = []
         if (existingPlot) {
             const localTime = parseDate(existingPlot.updatedAt);
             const cloudTime = parseDate(mappedPlot.updatedAt);
-            if (localTime > cloudTime) {
-                console.log(`[Conflict Resolution] Local is newer (${existingPlot.updatedAt} > ${mappedPlot.updatedAt}). Keeping local for plot: ${mappedPlot.id}`);
-                mergedPlot = { ...mappedPlot, ...existingPlot };
+            // ถ้า local ใหม่กว่า หรือ cloud ไม่มี timestamp ที่อ่านได้ (cloudTime===0) ให้ยึด local เป็นหลัก
+            // กัน bug เดิม: parseDate อ่านวันที่ไทยไม่ออก -> คืน 0 -> cloud ชนะเสมอ -> ทับงานที่เพิ่งแก้
+            if (localTime > cloudTime || (cloudTime === 0 && localTime > 0)) {
+                console.log(`[Conflict Resolution] Local is newer/มี timestamp ชัดกว่า. Keeping local for plot: ${mappedPlot.id}`);
+                // ยึด local ชนะทุกฟิลด์ที่ local มีค่าจริง แต่ยังรับฟิลด์ที่ cloud เท่านั้นที่มี (เช่น staffNote/สถานะ)
+                mergedPlot = mergeCloudOverLocal(mappedPlot, existingPlot);
             } else {
-                mergedPlot = { ...existingPlot, ...mappedPlot };
+                // cloud ใหม่กว่า: เอา cloud ทับ local แต่ข้ามฟิลด์ที่ cloud ว่าง (กันเซลล์ว่างลบข้อมูลดีทิ้ง)
+                mergedPlot = mergeCloudOverLocal(existingPlot, mappedPlot);
             }
         } else {
             mergedPlot = mappedPlot;
@@ -701,7 +785,11 @@ async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = []
     }
     
     // สำหรับกรณี Full Sync ลบแปลงในเครื่องที่ไม่มีในเซิร์ฟเวอร์
-    if (!isDeltaSync) {
+    // SAFETY: ถ้า cloud ตอบกลับมาว่างเปล่า (0 แปลง) ให้ "งดลบ" ทั้งหมด — เป็นสัญญาณของ response พัง/บางส่วน
+    // (backend มีปัญหาแล้วตอบ success+empty) มิฉะนั้นจะกวาดลบแปลงจริงในเครื่องทิ้งหมด = ข้อมูลหายยับ
+    if (!isDeltaSync && cloudPlots.length === 0) {
+        console.warn('[Sync Delete] ข้ามการลบแบบ full-sync เพราะ cloud ส่งแปลงมา 0 รายการ (กันข้อมูลหายจาก response ที่ผิดปกติ)');
+    } else if (!isDeltaSync) {
         const cloudPlotIds = new Set(cloudPlots.map(p => p.id || p["Plot ID"] || p["รหัสแปลง"]));
         for (const localPlot of localPlots) {
             if (!cloudPlotIds.has(localPlot.id) && !unsyncedPlotIds.has(localPlot.id)) {
@@ -725,7 +813,8 @@ async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = []
         }
         
         const existingPest = await SmartFarmerDB.get('pest_reports', mappedPest.id);
-        const mergedPest = existingPest ? { ...existingPest, ...mappedPest } : mappedPest;
+        // เอา cloud ทับ local แต่ข้ามฟิลด์ที่ cloud ว่าง กันข้อมูลรายงานโรคเดิมถูกเซลล์ว่างลบทิ้ง
+        const mergedPest = existingPest ? mergeCloudOverLocal(existingPest, mappedPest) : mappedPest;
         await SmartFarmerDB.put('pest_reports', mergedPest);
     }
     

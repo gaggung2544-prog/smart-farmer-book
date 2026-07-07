@@ -1035,7 +1035,12 @@ function setupSmartMapToggles() {
 }
 
 // Function to stop real-time GPS tracking on smart map [NEW]
-function stopSmartMapGpsTracking() {
+// silent=true : เรียกตอนออกจากหน้าแผนที่ (ไม่ต้อง toast) เพื่อกัน watchPosition รันต่อกิน battery
+function stopSmartMapGpsTracking(silent = false) {
+    const wasTracking = (smartMapGpsWatchId !== null);
+    // ไม่ได้ track อยู่ และไม่มี marker ค้าง -> ไม่มีอะไรต้องทำ (กัน toast เด้งตอนแค่สลับหน้า)
+    if (!wasTracking && !smartMapUserMarker && !smartMapUserAccuracyCircle) return;
+
     if (smartMapGpsWatchId !== null) {
         navigator.geolocation.clearWatch(smartMapGpsWatchId);
         smartMapGpsWatchId = null;
@@ -1048,7 +1053,7 @@ function stopSmartMapGpsTracking() {
         if (smartMapInstance) smartMapInstance.removeLayer(smartMapUserAccuracyCircle);
         smartMapUserAccuracyCircle = null;
     }
-    
+
     // Reset button UI style
     const gpsBtn = document.getElementById('smart-map-gps-btn');
     if (gpsBtn) {
@@ -1056,7 +1061,7 @@ function stopSmartMapGpsTracking() {
         gpsBtn.style.color = '#64748b';
         gpsBtn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.15)';
     }
-    showToast('ปิดการทำงานการติดตามตำแหน่ง GPS', 'info');
+    if (!silent && wasTracking) showToast('ปิดการทำงานการติดตามตำแหน่ง GPS', 'info');
 }
 
 // Get filtered plots based on current dropdown options [NEW]

@@ -297,9 +297,13 @@ function appendAiMessage(text, shouldSpeak) {
     
     // Basic Markdown removal for speaking and formatting
     const cleanTextForSpeech = text.replace(/\*/g, '');
-    
-    // Render text with simple bolding if any
-    div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // กัน XSS: escape HTML ก่อน แล้วค่อยแปลง **bold** (เอาต์พุตโมเดล/prompt-injection แทรก <img onerror> ไม่ได้)
+    const escaped = String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    div.innerHTML = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     messagesContainer.appendChild(div);
     scrollToBottom();
 

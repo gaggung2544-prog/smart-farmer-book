@@ -15827,7 +15827,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 closeQuickActions();
             }
         });
-        
+
+        // ปิดด้วยปุ่ม Escape (เข้าถึงง่ายขึ้น)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !quickActionsOverlay.classList.contains('d-none')) {
+                closeQuickActions();
+            }
+        });
+
         // ฟังก์ชันสำหรับปิด
         function closeQuickActions() {
             quickActionsMenu.style.transform = 'translateY(20px)';
@@ -16087,16 +16094,60 @@ function compressImage(file, callback) {
     };
 }
 
-function switchScreen(screenId) {
+// ── รองรับปุ่มย้อนกลับของเบราว์เซอร์/ฮาร์ดแวร์ (Android) ──
+// เดิม switchScreen แค่สลับ CSS class ไม่มี history -> กด back = ปิดแอปทั้งตัว
+let __currentScreenId = 'screen-dashboard';
+window.addEventListener('popstate', (e) => {
+    const target = (e.state && e.state.screenId) ? e.state.screenId : 'screen-dashboard';
+    // สลับหน้าโดยไม่ push ซ้ำ (fromHistory=true) กันลูป
+    switchScreen(target, true);
+});
+
+function switchScreen(screenId, fromHistory = false) {
+    // เตือนก่อนออกจากหน้าลงทะเบียนขณะยังกรอกข้อมูลค้าง (กันเผลอกดแล้วข้อมูลหาย)
+    if (__currentScreenId === 'screen-register' && screenId !== 'screen-register'
+        && typeof registerFormHasData === 'function' && registerFormHasData()) {
+        if (!confirm('คุณกรอกข้อมูลลงทะเบียนค้างไว้ ต้องการออกจากหน้านี้โดยไม่บันทึกใช่หรือไม่?')) {
+            // ผู้ใช้ยกเลิก -> คงอยู่หน้าลงทะเบียน
+            if (fromHistory) {
+                // มาจากปุ่ม back (history ถูกถอยไปแล้ว) ดัน state กลับเพื่อคงหน้าเดิม
+                try { history.pushState({ screenId: 'screen-register' }, ''); } catch (e) {}
+            }
+            return;
+        }
+    }
+
     // Always stop auto-refresh when leaving screen-analytics
     if (screenId !== 'screen-analytics') {
         if (typeof stopAnalyticsAutoRefresh === 'function') stopAnalyticsAutoRefresh();
     }
 
-    // Update nav bar active state [NEW: Map screen-staff to highlight the home/dashboard tab]
-    document.querySelectorAll('.nav-item').forEach(nav => {
+    // บันทึกประวัติการนำทางเพื่อให้ปุ่ม back ย้อนกลับหน้าเดิมแทนการปิดแอป
+    if (!fromHistory && screenId !== __currentScreenId) {
+        try { history.pushState({ screenId: screenId }, ''); } catch (e) {}
+    }
+    __currentScreenId = screenId;
+
+    // หยุดติดตาม GPS แบบเรียลไทม์เมื่อออกจากหน้าแผนที่ (กัน watchPosition รันต่อเบื้องหลัง = แบตหมดเร็ว)
+    if (screenId !== 'screen-smart-map') {
+        if (typeof stopSmartMapGpsTracking === 'function') stopSmartMapGpsTracking(true);
+    }
+
+    // ปิดไมค์ที่อัดค้างเมื่อออกจากหน้าแชท (กันไมโครโฟนเปิดค้างเบื้องหลัง)
+    if (screenId !== 'screen-chat') {
+        if (typeof cancelActiveRecording === 'function') cancelActiveRecording();
+    }
+
+    // Update nav bar active state
+    // หน้าจอที่ไม่มีในแถบเมนูล่าง (register/cost/harvest/pest/analytics/staff/price/asset-debt)
+    // ให้ไฮไลต์ปุ่ม "หน้าแรก" ไว้ เพื่อไม่ให้แถบเมนูว่างเปล่า ผู้ใช้จะได้รู้ว่ากลับหน้าแรกได้
+    const navItems = document.querySelectorAll('.nav-item[data-screen]');
+    const navScreenIds = [...navItems].map(n => n.getAttribute('data-screen'));
+    const isNavScreen = navScreenIds.includes(screenId);
+    navItems.forEach(nav => {
         const ds = nav.getAttribute('data-screen');
-        if (ds === screenId || (ds === 'screen-dashboard' && screenId === 'screen-staff')) {
+        const shouldActivate = (ds === screenId) || (!isNavScreen && ds === 'screen-dashboard');
+        if (shouldActivate) {
             nav.classList.add('active');
         } else {
             nav.classList.remove('active');
@@ -16145,7 +16196,11 @@ function switchScreen(screenId) {
             initSmartMappingSystem();
         }
     } else if (screenId === 'screen-register') {
-        clearRegisterForm();
+        // ล้างฟอร์มเฉพาะตอนที่ยังไม่มีข้อมูลกรอกค้าง (กันข้อมูลที่กรอกไว้หายเมื่อสลับหน้าแล้วกลับมา)
+        // ฟอร์มถูกล้างอยู่แล้วหลังลงทะเบียนสำเร็จ (submit -> clearRegisterForm ที่ ~18605)
+        if (typeof registerFormHasData !== 'function' || !registerFormHasData()) {
+            clearRegisterForm();
+        }
     } else if (screenId === 'screen-support') {
         let hasChanges = false;
         plots.forEach(p => {
@@ -16268,7 +16323,14 @@ function getUserPlots() {
             return pq === targetQuota;
         });
     }
-    return plots;
+    // เจ้าหน้าที่ส่งเสริม (มี staff_id) เห็นทุกแปลงได้ตามสิทธิ์งาน
+    if (localStorage.getItem('smart_farmer_staff_id')) {
+        return plots;
+    }
+    // FAIL-CLOSED: ไม่มีทั้ง quota และ staff_id (เช่น ถูกล้าง/เพี้ยน) -> คืนว่าง
+    // เดิม `return plots` = เผลอโชว์ข้อมูลของชาวไร่ทุกคนในเครื่องนี้
+    console.warn('[Security] getUserPlots: ไม่มี quota/staff_id — คืนค่าว่างเพื่อความปลอดภัย');
+    return [];
 }
 
 // Rebuild Dashboard Plot Selector Dropdown
@@ -16729,6 +16791,18 @@ function deletePlot(id) {
 }
 
 // Form clear helpers
+// ตรวจว่าฟอร์มลงทะเบียนมีข้อมูลที่ผู้ใช้กรอกค้างอยู่หรือไม่ (ใช้ตัดสินใจว่าจะล้างฟอร์มตอนเข้าหน้าไหม)
+function registerFormHasData() {
+    const val = (id) => {
+        const el = document.getElementById(id);
+        return el && el.value ? el.value.trim() : '';
+    };
+    if (val('reg-name') || val('reg-location') || val('reg-area') || val('reg-phone')) return true;
+    if (val('reg-variety-other')) return true;
+    if (typeof tempRegPhotoBase64 === 'string' && tempRegPhotoBase64) return true; // มีรูปแนบแล้ว
+    return false;
+}
+
 function clearRegisterForm() {
     const isStaff = localStorage.getItem('smart_farmer_staff_id') ? true : false;
     let quota = localStorage.getItem('smart_farmer_quota') || '00000';
@@ -17876,14 +17950,26 @@ function setupEventListeners() {
         });
     }
 
-    // PDPA Modal Close
+    // PDPA Modal Close (ปุ่ม × + คลิกพื้นหลัง + ปุ่ม Escape)
     const btnClosePdpa = document.getElementById('btn-close-pdpa');
+    const closePdpaModal = () => {
+        const pdpaModal = document.getElementById('pdpa-modal');
+        if (pdpaModal) pdpaModal.classList.add('d-none');
+    };
     if (btnClosePdpa) {
-        btnClosePdpa.addEventListener('click', () => {
-            const pdpaModal = document.getElementById('pdpa-modal');
-            if (pdpaModal) pdpaModal.classList.add('d-none');
+        btnClosePdpa.addEventListener('click', closePdpaModal);
+    }
+    const pdpaModalEl = document.getElementById('pdpa-modal');
+    if (pdpaModalEl) {
+        // ปิดเมื่อคลิกพื้นหลังนอกกล่องเนื้อหา
+        pdpaModalEl.addEventListener('click', (e) => {
+            if (e.target === pdpaModalEl) closePdpaModal();
         });
     }
+    document.addEventListener('keydown', (e) => {
+        const m = document.getElementById('pdpa-modal');
+        if (e.key === 'Escape' && m && !m.classList.contains('d-none')) closePdpaModal();
+    });
 
     // Welcome Success Start Button
     const btnWelcomeStart = document.getElementById('btn-welcome-success-start');
@@ -21550,26 +21636,31 @@ async function fetchAndRenderAnalytics() {
         if (cloudSec) cloudSec.style.display = 'block';
         
         const separator = url.includes('?') ? '&' : '?';
-        fetch(url + separator + 'action=summary')
+        // ตัวช่วยแปลงเป็นตัวเลขปลอดภัย กัน TypeError เมื่อ field หาย/ไม่ใช่ตัวเลข (เดิม data.x.toFixed() พังทั้งหน้า)
+        const num = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+        const summaryFetch = (typeof fetchWithTimeout === 'function')
+            ? fetchWithTimeout(url + separator + 'action=summary', {}, 30000)
+            : fetch(url + separator + 'action=summary');
+        summaryFetch
             .then(res => {
                 if (!res.ok) throw new Error('API response not OK');
                 return res.json();
             })
             .then(async data => {
                 if (data.status === 'success') {
-                    document.getElementById('an-kpi-plots').innerText = data.totalPlots;
-                    document.getElementById('an-kpi-area').innerText = data.totalArea.toFixed(1) + ' ไร่';
-                    document.getElementById('an-kpi-yield').innerText = data.totalExpectedYield.toFixed(0);
-                    
+                    document.getElementById('an-kpi-plots').innerText = num(data.totalPlots);
+                    document.getElementById('an-kpi-area').innerText = num(data.totalArea).toFixed(1) + ' ไร่';
+                    document.getElementById('an-kpi-yield').innerText = num(data.totalExpectedYield).toFixed(0);
+
                     if (cloudContent) {
                         cloudContent.innerHTML = `
                             <strong>📊 สรุปหลังบ้าน (Google Sheets):</strong><br>
-                            • แปลงรวม: <strong>${data.totalPlots}</strong> แปลง<br>
-                            • พื้นที่รวม: <strong>${data.totalArea.toFixed(1)}</strong> ไร่<br>
-                            • ผลผลิตคาดการณ์รวม: <strong>${data.totalExpectedYield.toFixed(1)}</strong> ตัน<br>
-                            • ผลผลิตเก็บเกี่ยวจริงรวม: <strong>${data.totalActualYield.toFixed(1)}</strong> ตัน<br>
-                            • ต้นทุนหลังบ้านรวม: <strong>${data.totalCost.toLocaleString()}</strong> บาท<br>
-                            • คำขอสนับสนุนรอดำเนินการ: <strong>${data.pendingSupportCount}</strong> คำขอ<br>
+                            • แปลงรวม: <strong>${num(data.totalPlots)}</strong> แปลง<br>
+                            • พื้นที่รวม: <strong>${num(data.totalArea).toFixed(1)}</strong> ไร่<br>
+                            • ผลผลิตคาดการณ์รวม: <strong>${num(data.totalExpectedYield).toFixed(1)}</strong> ตัน<br>
+                            • ผลผลิตเก็บเกี่ยวจริงรวม: <strong>${num(data.totalActualYield).toFixed(1)}</strong> ตัน<br>
+                            • ต้นทุนหลังบ้านรวม: <strong>${num(data.totalCost).toLocaleString()}</strong> บาท<br>
+                            • คำขอสนับสนุนรอดำเนินการ: <strong>${num(data.pendingSupportCount)}</strong> คำขอ<br>
                             <span style="font-size:9px; color:var(--text-secondary); margin-top:4px; display:block;">* ข้อมูลนี้ดึงสดจาก Google Sheet หลังบ้านตรงกันแบบเรียลไทม์</span>
                         `;
                     }
@@ -21587,13 +21678,16 @@ async function fetchAndRenderAnalytics() {
                         lastUpEl.innerText = '🔄 อัปเดตเมื่อ: ' + new Date().toLocaleTimeString('th-TH') + ' (ข้อมูล Cloud)';
                     }
                 } else {
-                    showToast('❌ ไม่สามารถดึงข้อมูลจาก Sheet ได้: ' + data.message, 'error');
+                    showToast('❌ ไม่สามารถดึงข้อมูลจาก Sheet ได้: ' + (data.message || ''), 'error');
+                    if (cloudContent) cloudContent.innerHTML = '⚠️ ดึงข้อมูลสรุปจาก Sheet ไม่สำเร็จ — แสดงข้อมูลล่าสุดในเครื่องแทน';
                     await renderAnalyticsReports(plots);
                 }
             })
             .catch(async err => {
                 console.error('Error fetching analytics summary:', err);
                 showToast('❌ การเชื่อมต่อล้มเหลว ดึงข้อมูลล่าสุดในเครื่องแทน', 'error');
+                // เคลียร์ข้อความ "กำลังโหลด" ที่ค้าง (เดิมค้างถาวรเมื่อ error)
+                if (cloudContent) cloudContent.innerHTML = '⚠️ เชื่อมต่อ Google Sheet ไม่สำเร็จ (อาจช้า/ออฟไลน์) — แสดงข้อมูลในเครื่องแทน';
                 await renderAnalyticsReports(plots);
             });
     }
@@ -22122,10 +22216,14 @@ async function fetchWeatherFromOpenMeteo(plot) {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&hourly=precipitation_probability&timezone=Asia%2FBangkok&forecast_days=1`;
     
     try {
-        const res = await fetch(url);
+        const res = (typeof fetchWithTimeout === 'function')
+            ? await fetchWithTimeout(url, {}, 15000)
+            : await fetch(url);
         if (!res.ok) throw new Error('API response not ok');
         const data = await res.json();
-        
+        // ตรวจ shape ก่อนใช้ กัน TypeError เมื่อ API rate-limit/ตอบผิดรูป (เดิม data.current.x พังเข้า catch เงียบๆ)
+        if (!data || !data.current) throw new Error('weather payload missing "current"');
+
         const temp = Math.round(data.current.temperature_2m);
         const code = data.current.weather_code;
         const wind = data.current.wind_speed_10m;
@@ -22203,7 +22301,13 @@ async function fetchWeatherFromOpenMeteo(plot) {
         blockEl.classList.remove('d-none');
     } catch (error) {
         console.error('Failed to fetch weather data:', error);
-        if (blockEl) blockEl.classList.add('d-none');
+        // แจ้งผู้ใช้แบบเบาๆ แทนการซ่อนบล็อกเงียบๆ (ผู้ใช้จะได้รู้ว่าโหลดไม่สำเร็จ ไม่ใช่ไม่มีฟีเจอร์)
+        if (tempEl) tempEl.innerText = '--°C';
+        if (iconEl) iconEl.innerText = '🌐';
+        if (statusEl) statusEl.innerText = 'โหลดสภาพอากาศไม่สำเร็จ (เน็ตช้า/ออฟไลน์)';
+        if (rainEl) rainEl.innerText = 'แตะกลับหน้าแรกอีกครั้งเพื่อลองใหม่';
+        if (adviceEl) adviceEl.innerText = '';
+        if (blockEl) blockEl.classList.remove('d-none');
     }
 }
 
