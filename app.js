@@ -15047,6 +15047,40 @@ function saveDB() {
     if (typeof updateNavBadges === 'function') updateNavBadges();
 }
 
+// บันทึกแปลงเดียว (upsert) แบบ atomic — ใช้แทน saveDB() เมื่อแก้แปลงเดียว
+// ข้อดี: ไม่ต้องเขียนทับทั้ง ~15,000 แปลงทุกครั้ง (เร็วกว่ามาก) และไม่ทับข้อมูลแปลงอื่นที่แท็บอื่นเพิ่งแก้
+function savePlot(plot) {
+    if (!SmartFarmerDB.db) {
+        console.warn("SmartFarmerDB not initialized, savePlot deferred");
+        return;
+    }
+    if (!plot || !plot.id) {
+        console.warn("savePlot: ไม่มี plot หรือไม่มี id — ข้าม");
+        return;
+    }
+    const tx = SmartFarmerDB.db.transaction('plots', 'readwrite');
+    tx.onabort = (e) => {
+        console.error('savePlot transaction aborted — ข้อมูลแปลงยังไม่ถูกบันทึก', tx.error || (e && e.target && e.target.error));
+        if (typeof showToast === 'function') showToast('⚠️ บันทึกข้อมูลแปลงไม่สำเร็จ (พื้นที่จัดเก็บอาจเต็ม)', 'warning');
+    };
+    tx.onerror = () => console.error('savePlot transaction error', tx.error);
+    tx.objectStore('plots').put(plot);
+    if (typeof updateNavBadges === 'function') updateNavBadges();
+}
+
+// ลบแปลงเดียวออกจาก IndexedDB แบบเจาะจง (ไม่ต้อง clear+เขียนใหม่ทั้ง store)
+function deletePlotRecord(id) {
+    if (!SmartFarmerDB.db) {
+        console.warn("SmartFarmerDB not initialized, deletePlotRecord deferred");
+        return;
+    }
+    const tx = SmartFarmerDB.db.transaction('plots', 'readwrite');
+    tx.onabort = (e) => console.error('deletePlotRecord aborted', tx.error || (e && e.target && e.target.error));
+    tx.onerror = () => console.error('deletePlotRecord error', tx.error);
+    tx.objectStore('plots').delete(id);
+    if (typeof updateNavBadges === 'function') updateNavBadges();
+}
+
 function savePestReports() {
     if (!SmartFarmerDB.db) {
         console.warn("SmartFarmerDB not initialized, savePestReports deferred");
@@ -16847,8 +16881,8 @@ function deletePlot(id) {
     }
     
     plots = plots.filter(p => p.id !== id);
-    saveDB();
-    
+    deletePlotRecord(id); // ลบเจาะจงแทน saveDB() ที่เขียนทับทั้ง store
+
     if (currentPlotId === id) {
         currentPlotId = plots.length > 0 ? plots[0].id : '';
     }
@@ -17106,7 +17140,7 @@ function updateSupportCheckboxes() {
         priceInput.addEventListener('input', (e) => {
             const priceVal = parseFloat(e.target.value) || 0;
             plot.customPrices[item] = priceVal;
-            saveDB();
+            savePlot(plot);
             
             // Recalculate local card total
             const cardTotal = priceVal * plot.area;
@@ -17233,7 +17267,7 @@ function toggleSupportItem(plotId, item, isChecked) {
         plot.supportItems = plot.supportItems.filter(i => i !== item);
     }
     
-    saveDB();
+    savePlot(plot);
     recalcTotalSupport(plot);
 }
 
@@ -18789,7 +18823,7 @@ function setupEventListeners() {
             };
             
             plots.push(newPlot);
-            saveDB();
+            savePlot(newPlot);
             currentPlotId = newPlot.id;
             
             // Log this action
@@ -18873,7 +18907,7 @@ function setupEventListeners() {
         const plot = plots.find(p => p.id === currentPlotId);
         if (plot) {
             plot[field] = value;
-            saveDB();
+            savePlot(plot);
             calculateAndDisplayEstimates(plot);
             if (shouldSync) {
                 syncToGoogleSheet('UPDATE', plot, 'ESTIMATE');
@@ -18932,7 +18966,7 @@ function setupEventListeners() {
                     const plot = plots.find(p => p.id === currentPlotId);
                     if (plot) {
                         plot.estPhoto = base64;
-                        saveDB();
+                        savePlot(plot);
                         estPreviewImg.src = base64;
                         estPreviewContainer.classList.remove('d-none');
                         
@@ -18950,7 +18984,7 @@ function setupEventListeners() {
             const plot = plots.find(p => p.id === currentPlotId);
             if (plot) {
                 plot.estPhoto = "";
-                saveDB();
+                savePlot(plot);
                 estPhotoInput.value = "";
                 estPreviewImg.src = "";
                 estPreviewContainer.classList.add('d-none');
@@ -19009,8 +19043,8 @@ function setupEventListeners() {
             if (subMaint) subMaint.value = plot.customPrices['ค่าดูแลรักษา'];
             if (subHarv) subHarv.value = plot.customPrices['ค่าเก็บเกี่ยว'];
             if (subOther) subOther.value = plot.customPrices['อื่นๆ'];
-            
-            saveDB();
+
+            savePlot(plot);
             document.getElementById('cost-total-display').innerText = (costVal * plot.area).toLocaleString();
             renderComparativeLedger(plot);
         }
@@ -19046,7 +19080,7 @@ function setupEventListeners() {
                 plot.costPerRai = sum;
                 document.getElementById('cost-per-rai').value = sum;
                 document.getElementById('cost-total-display').innerText = (sum * plot.area).toLocaleString();
-                saveDB();
+                savePlot(plot);
                 renderComparativeLedger(plot);
             }
         });
@@ -19103,7 +19137,7 @@ function setupEventListeners() {
         const plot = plots.find(p => p.id === currentPlotId);
         if (plot) {
             plot.isHarvested = isHarvested;
-            saveDB();
+            savePlot(plot);
             toggleHarvestInputs(isHarvested);
             calculateHarvestSummary(plot);
         }
@@ -19113,7 +19147,7 @@ function setupEventListeners() {
         const plot = plots.find(p => p.id === currentPlotId);
         if (plot) {
             plot.actualHarvestTons = parseFloat(e.target.value) || 0;
-            saveDB();
+            savePlot(plot);
             calculateHarvestSummary(plot);
         }
     });
@@ -19122,7 +19156,7 @@ function setupEventListeners() {
         const plot = plots.find(p => p.id === currentPlotId);
         if (plot) {
             plot.actualHarvestCCS = parseFloat(e.target.value) || 0;
-            saveDB();
+            savePlot(plot);
             calculateHarvestSummary(plot);
         }
     });
@@ -19131,7 +19165,7 @@ function setupEventListeners() {
         const plot = plots.find(p => p.id === currentPlotId);
         if (plot) {
             plot.actualHarvestDate = e.target.value;
-            saveDB();
+            savePlot(plot);
         }
     });
 
@@ -19141,7 +19175,7 @@ function setupEventListeners() {
             const plot = plots.find(p => p.id === currentPlotId);
             if (plot) {
                 plot.harvestMethod = e.target.value;
-                saveDB();
+                savePlot(plot);
                 calculateHarvestSummary(plot);
             }
         });
@@ -19153,7 +19187,7 @@ function setupEventListeners() {
             const plot = plots.find(p => p.id === currentPlotId);
             if (plot) {
                 plot.harvestEquipment = e.target.value;
-                saveDB();
+                savePlot(plot);
                 calculateHarvestSummary(plot);
             }
         });
@@ -19188,9 +19222,9 @@ function setupEventListeners() {
             plot.transportPlotWeight = parseFloat(document.getElementById('har-transport-plot-weight').value) || 0;
             plot.transportYardWeight = parseFloat(document.getElementById('har-transport-yard-weight').value) || 0;
             plot.transportFactoryWeight = parseFloat(document.getElementById('har-transport-factory-weight').value) || 0;
-            
-            saveDB();
-            
+
+            savePlot(plot);
+
             // Log this action
             addSystemAuditLog('UPDATE', 'HARVEST', plot.id, `บันทึกข้อมูลเก็บเกี่ยวสำเร็จ: ${plot.isHarvested ? 'ตัดสำเร็จ ' + plot.actualHarvestTons + ' ตัน ณ ' + plot.actualHarvestCCS + ' CCS' : 'ยังไม่ได้ตัด'} (วิธี: ${plot.harvestMethod}, อุปกรณ์: ${plot.harvestEquipment}) (แปลง: ${plot.name})`);
             
@@ -19790,9 +19824,9 @@ function renderGrowthTimeline(plot) {
                 plot.completedActivities = plot.completedActivities.filter(id => id !== taskId);
                 cb.closest('.timeline-task-item').classList.remove('checked');
             }
-            
-            saveDB();
-            
+
+            savePlot(plot);
+
             // Sync update to Google Sheet
             syncToGoogleSheet('UPDATE', plot, 'REGISTRATION');
         });
@@ -20495,7 +20529,7 @@ function updateTransportShrinkageTracker() {
     plot.transportPlotWeight = plotWt;
     plot.transportYardWeight = yardWt;
     plot.transportFactoryWeight = factoryWt;
-    saveDB();
+    savePlot(plot);
     
     if (plotWt <= 0 || factoryWt <= 0 || factoryWt > plotWt) {
         resultBox.classList.add('d-none');
@@ -21327,7 +21361,7 @@ function renderStaffDashboard() {
                 }
                 plot.factoryPlotCode = code;
                 plot.polygonStatus = 'verified';
-                saveDB();
+                savePlot(plot);
                 alert('บันทึกและออกรหัสแปลงโรงงานให้ชาวไร่เรียบร้อยแล้ว');
                 renderStaffDashboard();
             });
@@ -21338,7 +21372,7 @@ function renderStaffDashboard() {
         if (btnRejectPolygon) {
             btnRejectPolygon.addEventListener('click', () => {
                 plot.polygonStatus = 'rejected';
-                saveDB();
+                savePlot(plot);
                 alert('ตีกลับแนวเขตแปลงให้ชาวไร่วาดใหม่เรียบร้อยแล้ว');
                 renderStaffDashboard();
             });
@@ -21618,9 +21652,9 @@ async function saveStaffReply(plotId, status, note, visitDate) {
     plot.staffId = staffId;
     plot.staffName = staffName; // บันทึกชื่อพนักงานด้วย
     plot.staffReplyTime = new Date().toLocaleString('th-TH');
-    
-    saveDB();
-    
+
+    savePlot(plot);
+
     // ซิงก์ประวัติการอัปเดตลง Google Sheets
     syncToGoogleSheet('UPDATE', plot, 'REGISTRATION');
     
