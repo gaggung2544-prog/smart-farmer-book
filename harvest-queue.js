@@ -270,11 +270,21 @@ function renderStaffHarvesterRequests() {
     }
 
     // Filter plots with active harvester requests that belong to this promoter's zone
-    const myRequests = plots.filter(p => {
+    const searchInput = document.getElementById('staff-farmer-search');
+    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    let myRequests = plots.filter(p => {
         return p.harvesterRequest && 
                p.harvesterRequest.status !== 'COMPLETED' && 
                (typeof isStaffResponsibleForPlot === 'function' && isStaffResponsibleForPlot(currentStaffId, p));
     });
+
+    if (searchQuery) {
+        myRequests = myRequests.filter(p => 
+            (p.quota && String(p.quota).toLowerCase().includes(searchQuery)) || 
+            (p.name && String(p.name).toLowerCase().includes(searchQuery))
+        );
+    }
 
     countBadge.innerText = myRequests.length;
 

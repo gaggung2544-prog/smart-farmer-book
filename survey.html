@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แบบสำรวจความพึงพอใจ - Smart Farmer Book</title>
+    <!-- Google Fonts: Prompt & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-primary: #0F2C59;       /* Navy Blue */
+            --brand-secondary: #1E40AF;     /* Royal Blue */
+            --brand-light-bg: #F0F9FF;      /* Light Ice Blue */
+            --brand-accent: #0284C7;        /* Cyber Blue */
+            --brand-accent-bg: #E0F2FE;     /* Pastel Blue */
+            --brand-red: #EF4444;           /* Premium Red */
+            --brand-green: #10B981;         /* Success Green */
+            --text-primary: #1E293B;        /* Dark Slate */
+            --text-secondary: #64748B;      /* Gray Slate */
+            --border-color: #E2E8F0;
+            --shadow-sm: 0 2px 8px rgba(15, 44, 89, 0.05);
+            --shadow-md: 0 8px 20px rgba(15, 44, 89, 0.08);
+            --shadow-lg: 0 12px 30px rgba(15, 44, 89, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Prompt', 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #F8FAFC;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.6;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--brand-primary) 0%, #172554 100%);
+            color: white;
+            padding: 20px 16px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateX(-2px);
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+            flex: 1;
+            text-align: center;
+            margin-right: 40px; /* Offset for back button to center the title */
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: white;
+            padding: 4px;
+            border-bottom: 1.5px solid var(--border-color);
+            position: sticky;
+            top: 66px;
+            z-index: 90;
+        }
+
+        .tab-btn {
+            flex: 1;
+            text-align: center;
+            border: none;
+            background: none;
+            padding: 12px 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn.active {
+            color: var(--brand-primary);
+            background: var(--brand-accent-bg);
+        }
+
+        main {
+            flex: 1;
+            padding: 16px;
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--brand-primary);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+            background-color: #F8FAFC;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--brand-accent);
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+        }
+
+        /* User Type Choice Cards */
+        .user-type-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .type-card {
+            border: 1.5px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            background: #F8FAFC;
+        }
+
+        .type-card.active {
+            border-color: var(--brand-accent);
+            background: var(--brand-accent-bg);
+            color: var(--brand-primary);
+            font-weight: 600;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .type-card input[type="radio"] {
+            display: none;
+        }
+
+        .type-card .icon {
+            font-size: 24px;
+        }
+
+        .type-card .label {
+            font-size: 12px;
+        }
+
+        /* Emoji Rating scale */
+        .emoji-scale {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+        }
+
+        .emoji-btn {
+            background: none;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s;
+            filter: grayscale(80%) opacity(60%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .emoji-btn:hover {
+            transform: scale(1.2);
+            filter: grayscale(0%) opacity(100%);
+        }
+
+        .emoji-btn.active {
+            transform: scale(1.3);
+            filter: grayscale(0%) opacity(100%);
+        }
+
+        .emoji-btn .emoji-label {
+            font-size: 9.5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .emoji-btn.active .emoji-label {
+            color: var(--brand-primary);
+            font-weight: 700;
+        }
+
+        /* Star Rating Grid */
+        .rating-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .rating-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #F1F5F9;
+        }
+
+        .rating-item:last-child {
+            border-bottom: none;
+        }
+
+        .rating-item-label {
+            font-size: 12.5px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .star-rating {
+            display: flex;
+            gap: 4px;
+            direction: rtl; /* Allows simple CSS hover/selection cascade */
+        }
+
+        .star-rating span {
+            font-size: 22px;
+            color: #CBD5E1;
+            cursor: pointer;
+            transition: color 0.15s ease, transform 0.1s ease;
+        }
+
+        .star-rating span:hover,
+        .star-rating span:hover ~ span {
+            color: #FBBF24;
+            transform: scale(1.1);
+        }
+
+        .star-rating span.active,
+        .star-rating span.active ~ span {
+            color: #F59E0B;
+        }
+
+        /* Submit Button styling */
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, var(--brand-accent) 0%, var(--brand-secondary) 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        /* Success State screen */
+        .success-state {
+            text-align: center;
+            padding: 30px 10px;
+        }
+
+        .success-icon {
+            font-size: 54px;
+            color: var(--brand-green);
+            margin-bottom: 16px;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            80% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .success-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--brand-primary);
+            margin-bottom: 8px;
+        }
+
+        .success-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .btn-secondary {
+            background: #E2E8F0;
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #CBD5E1;
+        }
+
+        /* Admin / Results Dashboard styling */
+        .results-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .summary-card {
+            background: var(--brand-light-bg);
+            border: 1px solid rgba(2, 132, 199, 0.15);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .summary-card-val {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--brand-primary);
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .summary-card-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        /* SVG charts */
+        .chart-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 14px auto;
+            max-width: 250px;
+        }
+
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            font-size: 10.5px;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* Admin authentication prompt */
+        .admin-auth-box {
+            text-align: center;
+            padding: 30px 10px;
+        }
+
+        .admin-icon {
+            font-size: 44px;
+            margin-bottom: 12px;
+        }
+
+        /* Comments Feed */
+        .comments-feed {
+            max-height: 250px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;
+        }
+
+        .comment-card {
+            background: #F8FAFC;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 12px;
+        }
+
+        .comment-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10.5px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .comment-text {
+            color: var(--text-primary);
+            word-break: break-word;
+            line-height: 1.45;
+        }
+
+        /* Admin Action Buttons */
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .admin-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-export {
+            background: var(--brand-accent);
+            color: white;
+        }
+
+        .btn-export:hover {
+            background: var(--brand-secondary);
+        }
+
+        .btn-reset {
+            background: #FFF1F2;
+            color: var(--brand-red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-reset:hover {
+            background: #FFE4E6;
+        }
+
+        .d-none {
+            display: none !important;
+        }
+
+        /* Scrollbar styles */
+        .comments-feed::-webkit-scrollbar {
+            width: 4px;
+        }
+        .comments-feed::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        .comments-feed::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header bar with logo and back arrow -->
+    <header>
+        <a href="index.html" class="back-btn" id="btn-back-to-app">
+            <span>⬅️</span> กลับแอป
+        </a>
+        <div class="header-title">📊 สำรวจความพึงพอใจการใช้งาน</div>
+    </header>
+
+    <!-- Navigation Tabs for Survey vs Admin Stats -->
+    <div class="nav-tabs">
+        <button type="button" class="tab-btn active" id="tab-survey-btn" onclick="switchTab('survey')">
+            📝 ทำแบบประเมิน
+        </button>
+        <button type="button" class="tab-btn" id="tab-admin-btn" onclick="switchTab('admin')">
+            🔒 สถิติแอดมิน
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <main>
+        
+        <!-- ================= SURVEY TAB CONTENT ================= -->
+        <div id="tab-content-survey">
+            
+            <!-- Survey Form Section -->
+            <form id="survey-form" onsubmit="submitSurvey(event)">
+                
+                <!-- Card 1: User Type and Profile Info -->
+                <div class="card">
+                    <div class="card-title">👨‍🌾 ข้อมูลผู้ทำแบบประเมิน</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">ประเภทผู้ใช้งานระบบ</label>
+                        <div class="user-type-grid">
+                            <label class="type-card active" id="label-role-farmer">
+                                <span class="icon">🌾</span>
+                                <span class="label">ชาวไร่อ้อย</span>
+                                <input type="radio" name="user-role" value="farmer" checked onclick="selectRole('farmer')">
+                            </label>
+                            <label class="type-card" id="label-role-staff">
+                                <span class="icon">🧑‍🌾</span>
+                                <span class="label">พนักงานส่งเสริม</span>
+                                <input type="radio" name="user-role" value="staff" onclick="selectRole('staff')">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="user-quota" id="quota-label">รหัสโควตาชาวไร่ (ระบุหรือไม่ก็ได้)</label>
+                        <input type="text" id="user-quota" class="form-input" placeholder="ป้อนรหัสโควตาของคุณ เช่น 12345" maxlength="10">
+                    </div>
+                </div>
+
+                <!-- Card 2: Overall satisfaction rating (Emoji scale) -->
+                <div class="card">
+                    <div class="card-title">❤️ ความพึงพอใจในภาพรวมระบบ</div>
+                    <p style="font-size: 11.5px; color: var(--text-secondary); margin-bottom: 12px;">
+                        กรุณาเลือกอีโมจิระดับความพึงพอใจการใช้งาน Smart Farmer Book ในภาพรวม
+                    </p>
+                    
+                    <div class="emoji-scale">
+                        <button type="button" class="emoji-btn" data-value="1" onclick="selectOverallRating(1)">
+                            <span>😠</span>
+                            <span class="emoji-label">ปรับปรุง</span>
+                        </button>
+                        <button type="button" class="emoji-btn" data-value="2" onclick="selectOverallRating(2)">
+                            <span>😕</span>
+                            <span class="emoji-label">พอใช้</span>
+                        </button>
+                        <button type="button" class="emoji-btn" data-value="3" onclick="selectOverallRating(3)">
+                            <span>😐</span>
+                            <span class="emoji-label">ปานกลาง</span>
+                        </button>
+                        <button type="button" class="emoji-btn" data-value="4" onclick="selectOverallRating(4)">
+                            <span>🙂</span>
+                            <span class="emoji-label">พึงพอใจ</span>
+                        </button>
+                        <button type="button" class="emoji-btn active" data-value="5" onclick="selectOverallRating(5)">
+                            <span>😍</span>
+                            <span class="emoji-label">ดีเยี่ยม</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="overall-rating-val" value="5" required>
+                </div>
+
+                <!-- Card 3: Specific feature evaluations (Star ratings) -->
+                <div class="card">
+                    <div class="card-title">⭐ ประเมินความพึงพอใจแต่ละฟังก์ชัน</div>
+                    <p style="font-size: 11.5px; color: var(--text-secondary); margin-bottom: 12px;">
+                        เลือกคะแนน 1 ถึง 5 ดาว ให้กับหัวข้อฟังก์ชันการใช้งานต่างๆ
+                    </p>
+                    
+                    <div class="rating-list">
+                        
+                        <!-- Item 1: Registration -->
+                        <div class="rating-item">
+                            <span class="rating-item-label">🎋 1. ระบบขึ้นทะเบียนแปลงอ้อย</span>
+                            <div class="star-rating" data-feature="feat-register">
+                                <span data-star="5" onclick="rateFeature('feat-register', 5)">★</span>
+                                <span data-star="4" onclick="rateFeature('feat-register', 4)">★</span>
+                                <span data-star="3" onclick="rateFeature('feat-register', 3)">★</span>
+                                <span data-star="2" onclick="rateFeature('feat-register', 2)">★</span>
+                                <span data-star="1" class="active" onclick="rateFeature('feat-register', 1)">★</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 2: Fertilizer -->
+                        <div class="rating-item">
+                            <span class="rating-item-label">🧪 2. ระบบคำนวณปุ๋ยสั่งตัด/ดิน</span>
+                            <div class="star-rating" data-feature="feat-fertilizer">
+                                <span data-star="5" onclick="rateFeature('feat-fertilizer', 5)">★</span>
+                                <span data-star="4" onclick="rateFeature('feat-fertilizer', 4)">★</span>
+                                <span data-star="3" onclick="rateFeature('feat-fertilizer', 3)">★</span>
+                                <span data-star="2" onclick="rateFeature('feat-fertilizer', 2)">★</span>
+                                <span data-star="1" class="active" onclick="rateFeature('feat-fertilizer', 1)">★</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 3: Yield Slider -->
+                        <div class="rating-item">
+                            <span class="rating-item-label">📊 3. แถบเลื่อนทำนายผลผลิต (Yield Slider)</span>
+                            <div class="star-rating" data-feature="feat-yield">
+                                <span data-star="5" onclick="rateFeature('feat-yield', 5)">★</span>
+                                <span data-star="4" onclick="rateFeature('feat-yield', 4)">★</span>
+                                <span data-star="3" onclick="rateFeature('feat-yield', 3)">★</span>
+                                <span data-star="2" onclick="rateFeature('feat-yield', 2)">★</span>
+                                <span data-star="1" class="active" onclick="rateFeature('feat-yield', 1)">★</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 4: ROI cost ledger -->
+                        <div class="rating-item">
+                            <span class="rating-item-label">💰 4. ระบบงบการเงินรายแปลง (P&L Ledger)</span>
+                            <div class="star-rating" data-feature="feat-finance">
+                                <span data-star="5" onclick="rateFeature('feat-finance', 5)">★</span>
+                                <span data-star="4" onclick="rateFeature('feat-finance', 4)">★</span>
+                                <span data-star="3" onclick="rateFeature('feat-finance', 3)">★</span>
+                                <span data-star="2" onclick="rateFeature('feat-finance', 2)">★</span>
+                                <span data-star="1" class="active" onclick="rateFeature('feat-finance', 1)">★</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 5: Harvest Logger -->
+                        <div class="rating-item">
+                            <span class="rating-item-label">🚚 5. บันทึกคิวตัดอ้อย/คำนวณหดระเหย</span>
+                            <div class="star-rating" data-feature="feat-harvest">
+                                <span data-star="5" onclick="rateFeature('feat-harvest', 5)">★</span>
+                                <span data-star="4" onclick="rateFeature('feat-harvest', 4)">★</span>
+                                <span data-star="3" onclick="rateFeature('feat-harvest', 3)">★</span>
+                                <span data-star="2" onclick="rateFeature('feat-harvest', 2)">★</span>
+                                <span data-star="1" class="active" onclick="rateFeature('feat-harvest', 1)">★</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 6: AI Consultant -->
+                        <div class="rating-item">
+                            <span class="rating-item-label">🤖 6. ผู้ช่วยถามตอบอัจฉริยะ AI Consultant</span>
+                            <div class="star-rating" data-feature="feat-ai">
+                                <span data-star="5" onclick="rateFeature('feat-ai', 5)">★</span>
+                                <span data-star="4" onclick="rateFeature('feat-ai', 4)">★</span>
+                                <span data-star="3" onclick="rateFeature('feat-ai', 3)">★</span>
+                                <span data-star="2" onclick="rateFeature('feat-ai', 2)">★</span>
+                                <span data-star="1" class="active" onclick="rateFeature('feat-ai', 1)">★</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Card 4: Detailed comments -->
+                <div class="card">
+                    <div class="card-title">✍️ ข้อเสนอแนะเพิ่มเติมเพื่อปรับปรุงระบบ</div>
+                    
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <textarea id="user-comments" class="form-textarea" rows="4" placeholder="พิมพ์สิ่งที่คุณชอบ หรือสิ่งที่คุณต้องการให้ระบบปรับปรุงเพิ่มเติมได้ที่นี่..." style="resize: none;" maxlength="400" oninput="updateCharCount()"></textarea>
+                        <div style="display: flex; justify-content: flex-end; font-size: 10.5px; color: var(--text-secondary); margin-top: 6px;">
+                            <span id="char-count">0</span>/400 อักษร
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit">
+                    💾 ส่งข้อมูลประเมินความพึงพอใจ
+                </button>
+            </form>
+
+            <!-- Success State Screen (Initially Hidden) -->
+            <div id="survey-success-container" class="card success-state d-none">
+                <div class="success-icon">✔️</div>
+                <div class="success-text">บันทึกข้อมูลเรียบร้อยแล้ว!</div>
+                <div class="success-sub">ขอขอบคุณข้อมูลของท่านเป็นอย่างยิ่ง ข้อมูลนี้จะช่วยให้ระบบ Smart Farmer Book ถูกปรับปรุงและพัฒนาให้ดียิ่งขึ้นต่อชาวไร่ไทย</div>
+                <button type="button" class="btn-secondary" onclick="resetForm()">
+                    🔄 ทำแบบประเมินอีกครั้ง
+                </button>
+            </div>
+
+        </div>
+
+
+        <!-- ================= ADMIN TAB CONTENT ================= -->
+        <div id="tab-content-admin" class="d-none">
+            
+            <!-- Admin password box (Initially Visible if not authorized) -->
+            <div id="admin-auth-container" class="card admin-auth-box">
+                <div class="admin-icon">🔒</div>
+                <h3 style="font-size: 15px; font-weight: 700; color: var(--brand-primary); margin-bottom: 6px;">ระบุรหัสเพื่อเปิดดูหน้าสถิติ</h3>
+                <p style="font-size: 11.5px; color: var(--text-secondary); margin-bottom: 16px;">สถิตินี้เฉพาะแอดมินหรือเจ้าหน้าที่ส่วนกลางเท่านั้น</p>
+                
+                <div class="form-group" style="max-width: 250px; margin: 0 auto 12px;">
+                    <input type="password" id="admin-pin" class="form-input" placeholder="ป้อนรหัสผ่าน (รหัสผ่านเริ่มต้น: 1234)" style="text-align: center; letter-spacing: 4px; font-size: 18px; font-weight: 700; font-family:'Outfit';">
+                    <div id="auth-error-msg" style="color: var(--brand-red); font-size: 11px; margin-top: 6px; font-weight: 600;" class="d-none">❌ รหัสผ่านไม่ถูกต้อง!</div>
+                </div>
+                
+                <button type="button" class="btn-submit" onclick="unlockAdmin()" style="max-width: 200px; margin: 0 auto; height: 38px; font-size: 13px;">
+                    🔓 ยืนยันรหัสเข้าสู่ระบบ
+                </button>
+            </div>
+
+            <!-- Admin Stats Container (Initially Hidden) -->
+            <div id="admin-stats-container" class="d-none">
+                
+                <!-- Summary Metrics Row -->
+                <div class="results-summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-card-val" id="stat-total-responses">0</div>
+                        <div class="summary-card-label">จำนวนผู้ประเมิน</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-val" id="stat-avg-rating">0.00</div>
+                        <div class="summary-card-label">คะแนนภาพรวม</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-val" id="stat-positive-rate">0%</div>
+                        <div class="summary-card-label">ความพึงพอใจสูง</div>
+                    </div>
+                </div>
+
+                <!-- Donut Chart: Satisfaction breakdown -->
+                <div class="card">
+                    <div class="card-title">📈 สรุปสัดส่วนระดับความพึงพอใจภาพรวม</div>
+                    
+                    <div class="chart-box">
+                        <!-- Custom dynamic SVG Donut Chart -->
+                        <svg width="180" height="180" viewBox="0 0 100 100" style="transform: rotate(-90deg);">
+                            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#E2E8F0" stroke-width="12"></circle>
+                            <!-- Segments will be injected dynamically -->
+                            <circle id="donut-segment-5" cx="50" cy="50" r="40" fill="transparent" stroke="#10B981" stroke-width="12" stroke-dasharray="0 251.2" stroke-dashoffset="0" style="transition: stroke-dasharray 0.6s ease;"></circle>
+                            <circle id="donut-segment-4" cx="50" cy="50" r="40" fill="transparent" stroke="#3B82F6" stroke-width="12" stroke-dasharray="0 251.2" stroke-dashoffset="0" style="transition: stroke-dasharray 0.6s ease;"></circle>
+                            <circle id="donut-segment-3" cx="50" cy="50" r="40" fill="transparent" stroke="#FBBF24" stroke-width="12" stroke-dasharray="0 251.2" stroke-dashoffset="0" style="transition: stroke-dasharray 0.6s ease;"></circle>
+                            <circle id="donut-segment-2" cx="50" cy="50" r="40" fill="transparent" stroke="#F97316" stroke-width="12" stroke-dasharray="0 251.2" stroke-dashoffset="0" style="transition: stroke-dasharray 0.6s ease;"></circle>
+                            <circle id="donut-segment-1" cx="50" cy="50" r="40" fill="transparent" stroke="#EF4444" stroke-width="12" stroke-dasharray="0 251.2" stroke-dashoffset="0" style="transition: stroke-dasharray 0.6s ease;"></circle>
+                            <!-- Text overlay -->
+                            <g style="transform: rotate(90deg) translate(0px, -100px);">
+                                <text x="50" y="47" text-anchor="middle" font-family="'Outfit', sans-serif" font-size="14" font-weight="800" fill="#0F2C59" id="donut-text-val">0.0</text>
+                                <text x="50" y="60" text-anchor="middle" font-family="'Prompt'" font-size="6.5" font-weight="600" fill="#64748B">คะแนนเฉลี่ย</text>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <div class="chart-legend">
+                        <div class="legend-item"><span class="legend-dot" style="background:#10B981;"></span>ดีเยี่ยม (<span id="pct-rating-5">0%</span>)</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#3B82F6;"></span>พึงพอใจ (<span id="pct-rating-4">0%</span>)</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#FBBF24;"></span>ปานกลาง (<span id="pct-rating-3">0%</span>)</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#F97316;"></span>พอใช้ (<span id="pct-rating-2">0%</span>)</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#EF4444;"></span>ปรับปรุง (<span id="pct-rating-1">0%</span>)</div>
+                    </div>
+                </div>
+
+                <!-- Bar Chart: Feature breakdown -->
+                <div class="card">
+                    <div class="card-title">📊 สรุปคะแนนเฉลี่ยรายฟังก์ชันการทำงาน</div>
+                    
+                    <!-- SVG Bar Chart -->
+                    <div style="width: 100%; overflow-x: auto; margin-top: 10px;">
+                        <svg width="340" height="180" viewBox="0 0 340 180" style="background: #FFF; display: block; margin: 0 auto;">
+                            <!-- Grid lines -->
+                            <line x1="45" y1="20" x2="330" y2="20" stroke="#F1F5F9" stroke-width="1"></line>
+                            <line x1="45" y1="50" x2="330" y2="50" stroke="#F1F5F9" stroke-width="1"></line>
+                            <line x1="45" y1="80" x2="330" y2="80" stroke="#F1F5F9" stroke-width="1"></line>
+                            <line x1="45" y1="110" x2="330" y2="110" stroke="#F1F5F9" stroke-width="1"></line>
+                            <line x1="45" y1="140" x2="330" y2="140" stroke="#CBD5E1" stroke-width="1.5"></line>
+                            
+                            <!-- Grid labels (Left side) -->
+                            <text x="35" y="24" font-size="8.5" fill="#64748B" font-family="'Outfit'" text-anchor="end">5.0 ★</text>
+                            <text x="35" y="54" font-size="8.5" fill="#64748B" font-family="'Outfit'" text-anchor="end">4.0 ★</text>
+                            <text x="35" y="84" font-size="8.5" fill="#64748B" font-family="'Outfit'" text-anchor="end">3.0 ★</text>
+                            <text x="35" y="114" font-size="8.5" fill="#64748B" font-family="'Outfit'" text-anchor="end">2.0 ★</text>
+                            <text x="35" y="144" font-size="8.5" fill="#64748B" font-family="'Outfit'" text-anchor="end">0.0 ★</text>
+                            
+                            <!-- Dynamic Bars (Height and label computed dynamically in survey.js) -->
+                            <!-- Bar 1 (Register) -->
+                            <rect id="bar-register" x="65" y="140" width="22" height="0" fill="#0F2C59" rx="3" style="transition: all 0.6s ease;"></rect>
+                            <text id="val-register" x="76" y="135" font-size="8.5" font-family="'Outfit'" font-weight="700" fill="#0F2C59" text-anchor="middle">0.0</text>
+                            
+                            <!-- Bar 2 (Fertilizer) -->
+                            <rect id="bar-fertilizer" x="110" y="140" width="22" height="0" fill="#1E40AF" rx="3" style="transition: all 0.6s ease;"></rect>
+                            <text id="val-fertilizer" x="121" y="135" font-size="8.5" font-family="'Outfit'" font-weight="700" fill="#1E40AF" text-anchor="middle">0.0</text>
+                            
+                            <!-- Bar 3 (Yield) -->
+                            <rect id="bar-yield" x="155" y="140" width="22" height="0" fill="#0284C7" rx="3" style="transition: all 0.6s ease;"></rect>
+                            <text id="val-yield" x="166" y="135" font-size="8.5" font-family="'Outfit'" font-weight="700" fill="#0284C7" text-anchor="middle">0.0</text>
+                            
+                            <!-- Bar 4 (Finance) -->
+                            <rect id="bar-finance" x="200" y="140" width="22" height="0" fill="#F59E0B" rx="3" style="transition: all 0.6s ease;"></rect>
+                            <text id="val-finance" x="211" y="135" font-size="8.5" font-family="'Outfit'" font-weight="700" fill="#F59E0B" text-anchor="middle">0.0</text>
+                            
+                            <!-- Bar 5 (Harvest) -->
+                            <rect id="bar-harvest" x="245" y="140" width="22" height="0" fill="#10B981" rx="3" style="transition: all 0.6s ease;"></rect>
+                            <text id="val-harvest" x="256" y="135" font-size="8.5" font-family="'Outfit'" font-weight="700" fill="#10B981" text-anchor="middle">0.0</text>
+                            
+                            <!-- Bar 6 (AI) -->
+                            <rect id="bar-ai" x="290" y="140" width="22" height="0" fill="#8B5CF6" rx="3" style="transition: all 0.6s ease;"></rect>
+                            <text id="val-ai" x="301" y="135" font-size="8.5" font-family="'Outfit'" font-weight="700" fill="#8B5CF6" text-anchor="middle">0.0</text>
+
+                            <!-- Bottom Labels -->
+                            <text x="76" y="155" font-size="8.5" fill="#64748B" font-family="'Prompt'" font-weight="600" text-anchor="middle">ทะเบียน</text>
+                            <text x="121" y="155" font-size="8.5" fill="#64748B" font-family="'Prompt'" font-weight="600" text-anchor="middle">ปุ๋ย</text>
+                            <text x="166" y="155" font-size="8.5" fill="#64748B" font-family="'Prompt'" font-weight="600" text-anchor="middle">ผลผลิต</text>
+                            <text x="211" y="155" font-size="8.5" fill="#64748B" font-family="'Prompt'" font-weight="600" text-anchor="middle">บัญชี</text>
+                            <text x="256" y="155" font-size="8.5" fill="#64748B" font-family="'Prompt'" font-weight="600" text-anchor="middle">เก็บเกี่ยว</text>
+                            <text x="301" y="155" font-size="8.5" fill="#64748B" font-family="'Prompt'" font-weight="600" text-anchor="middle">บอท AI</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Recent Comments/Feedback -->
+                <div class="card">
+                    <div class="card-title">💬 ความคิดเห็นและข้อเสนอแนะล่าสุด</div>
+                    <div class="comments-feed" id="comments-feed-container">
+                        <div style="text-align: center; color: var(--text-secondary); padding: 20px 0; font-size: 12px;">📂 ยังไม่มีข้อความติชมในตอนนี้</div>
+                    </div>
+                </div>
+
+                <!-- Admin Action buttons -->
+                <div class="admin-actions">
+                    <button type="button" class="admin-btn btn-export" onclick="exportCSV()">
+                        📥 ส่งออกไฟล์รายงาน CSV
+                    </button>
+                    <button type="button" class="admin-btn btn-reset" onclick="confirmResetData()">
+                        🗑️ ล้างข้อมูลดิบทั้งหมด
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Survey logic implementation script -->
+    <script>
+        // LocalStorage keys
+        const STORAGE_SURVEY_KEY = 'smart_farmer_survey_responses';
+
+        // Survey State
+        let currentRole = 'farmer';
+        let currentOverallRating = 5;
+        let featureRatings = {
+            'feat-register': 1,
+            'feat-fertilizer': 1,
+            'feat-yield': 1,
+            'feat-finance': 1,
+            'feat-harvest': 1,
+            'feat-ai': 1
+        };
+
+        // Initialize state on DOM load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check Query String Parameters (E.g. ?quota=12345&role=farmer)
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramQuota = urlParams.get('quota');
+            const paramRole = urlParams.get('role');
+
+            if (paramRole === 'staff' || paramRole === 'promoter') {
+                selectRole('staff');
+            } else {
+                selectRole('farmer');
+            }
+
+            if (paramQuota) {
+                document.getElementById('user-quota').value = paramQuota;
+            }
+
+            // Seed initial mock data if localStorage is completely empty, to make the dashboard look beautiful from start
+            initMockDataIfNeeded();
+        });
+
+        // Switch role tabs
+        function selectRole(role) {
+            currentRole = role;
+            
+            const cardFarmer = document.getElementById('label-role-farmer');
+            const cardStaff = document.getElementById('label-role-staff');
+            const quotaInput = document.getElementById('user-quota');
+            const quotaLabel = document.getElementById('quota-label');
+
+            if (role === 'farmer') {
+                cardFarmer.classList.add('active');
+                cardStaff.classList.remove('active');
+                quotaInput.placeholder = "ป้อนรหัสโควตาของคุณ เช่น 12345";
+                quotaLabel.textContent = "รหัสโควตาชาวไร่ (ระบุหรือไม่ก็ได้)";
+            } else {
+                cardFarmer.classList.remove('active');
+                cardStaff.classList.add('active');
+                quotaInput.placeholder = "ป้อนรหัสพนักงานของคุณ เช่น ST999";
+                quotaLabel.textContent = "รหัสพนักงานส่งเสริม (ระบุหรือไม่ก็ได้)";
+            }
+        }
+
+        // Handle emoji selection
+        function selectOverallRating(rating) {
+            currentOverallRating = rating;
+            document.getElementById('overall-rating-val').value = rating;
+
+            // Update UI styles
+            document.querySelectorAll('.emoji-btn').forEach(btn => {
+                const val = parseInt(btn.getAttribute('data-value'));
+                if (val === rating) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Handle Star Ratings
+        function rateFeature(featureId, rating) {
+            featureRatings[featureId] = rating;
+
+            const ratingContainer = document.querySelector(`.star-rating[data-feature="${featureId}"]`);
+            if (ratingContainer) {
+                ratingContainer.querySelectorAll('span').forEach(star => {
+                    const starVal = parseInt(star.getAttribute('data-star'));
+                    if (starVal === rating) {
+                        star.classList.add('active');
+                    } else {
+                        star.classList.remove('active');
+                    }
+                });
+            }
+        }
+
+        // Update character count
+        function updateCharCount() {
+            const val = document.getElementById('user-comments').value;
+            document.getElementById('char-count').textContent = val.length;
+        }
+
+        // Form reset logic
+        function resetForm() {
+            // Reset input values
+            document.getElementById('user-comments').value = '';
+            document.getElementById('char-count').textContent = '0';
+            
+            // Reload query params profile
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramQuota = urlParams.get('quota');
+            document.getElementById('user-quota').value = paramQuota || '';
+
+            // Reset ratings to default
+            selectOverallRating(5);
+            Object.keys(featureRatings).forEach(key => {
+                rateFeature(key, 1);
+            });
+
+            // Toggle screens
+            document.getElementById('survey-form').classList.remove('d-none');
+            document.getElementById('survey-success-container').classList.add('d-none');
+        }
+
+        // Submit Survey Form
+        function submitSurvey(event) {
+            event.preventDefault();
+
+            const quotaValue = document.getElementById('user-quota').value.trim();
+            const commentsValue = document.getElementById('user-comments').value.trim();
+            
+            const newResponse = {
+                id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+                timestamp: new Date().toISOString(),
+                role: currentRole,
+                quota: quotaValue || 'ไม่ระบุ',
+                overallRating: currentOverallRating,
+                ratings: { ...featureRatings },
+                comments: commentsValue || ''
+            };
+
+            // Get existing responses, append new, write back
+            const responses = getSurveyData();
+            responses.unshift(newResponse); // Add to beginning
+            localStorage.setItem(STORAGE_SURVEY_KEY, JSON.stringify(responses));
+
+            // Hide form, show success container
+            document.getElementById('survey-form').classList.add('d-none');
+            document.getElementById('survey-success-container').classList.remove('d-none');
+            
+            // Recalculate stats for admin dashboard in case they view it next
+            renderAdminStats();
+        }
+
+        // Get localstorage responses list
+        function getSurveyData() {
+            const raw = localStorage.getItem(STORAGE_SURVEY_KEY);
+            return raw ? JSON.parse(raw) : [];
+        }
+
+        // Tab selection switcher
+        function switchTab(tabId) {
+            const tabSurvey = document.getElementById('tab-survey-btn');
+            const tabAdmin = document.getElementById('tab-admin-btn');
+            const contentSurvey = document.getElementById('tab-content-survey');
+            const contentAdmin = document.getElementById('tab-content-admin');
+
+            if (tabId === 'survey') {
+                tabSurvey.classList.add('active');
+                tabAdmin.classList.remove('active');
+                contentSurvey.classList.remove('d-none');
+                contentAdmin.classList.add('d-none');
+            } else {
+                tabSurvey.classList.remove('active');
+                tabAdmin.classList.add('active');
+                contentSurvey.classList.add('d-none');
+                contentAdmin.classList.remove('d-none');
+
+                // Check authorization status
+                const isAuth = sessionStorage.getItem('smart_farmer_admin_auth') === 'true';
+                if (isAuth) {
+                    showAdminDashboard();
+                } else {
+                    showAdminAuth();
+                }
+            }
+        }
+
+        // Admin Auth Flow
+        function showAdminAuth() {
+            document.getElementById('admin-auth-container').classList.remove('d-none');
+            document.getElementById('admin-stats-container').classList.add('d-none');
+            document.getElementById('admin-pin').value = '';
+            document.getElementById('auth-error-msg').classList.add('d-none');
+        }
+
+        function showAdminDashboard() {
+            document.getElementById('admin-auth-container').classList.add('d-none');
+            document.getElementById('admin-stats-container').classList.remove('d-none');
+            renderAdminStats();
+        }
+
+        function unlockAdmin() {
+            const pin = document.getElementById('admin-pin').value.trim();
+            if (pin === '1234' || pin.toLowerCase() === 'admin') {
+                sessionStorage.setItem('smart_farmer_admin_auth', 'true');
+                showAdminDashboard();
+            } else {
+                const err = document.getElementById('auth-error-msg');
+                err.classList.remove('d-none');
+                setTimeout(() => {
+                    err.classList.add('d-none');
+                }, 2500);
+            }
+        }
+
+        // Generate analytics stats
+        function renderAdminStats() {
+            const data = getSurveyData();
+            
+            // Total responses
+            const total = data.length;
+            document.getElementById('stat-total-responses').textContent = total;
+
+            if (total === 0) {
+                document.getElementById('stat-avg-rating').textContent = '0.00';
+                document.getElementById('stat-positive-rate').textContent = '0%';
+                
+                // Clear charts
+                resetChartsUI();
+                return;
+            }
+
+            // Averages & positive ratings (4 or 5 stars overall)
+            let sumOverall = 0;
+            let positiveCount = 0;
+            let starCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            
+            let featureSums = {
+                'feat-register': 0,
+                'feat-fertilizer': 0,
+                'feat-yield': 0,
+                'feat-finance': 0,
+                'feat-harvest': 0,
+                'feat-ai': 0
+            };
+
+            data.forEach(item => {
+                const score = item.overallRating;
+                sumOverall += score;
+                starCounts[score] = (starCounts[score] || 0) + 1;
+                
+                if (score >= 4) positiveCount++;
+
+                // Feature rating sums
+                Object.keys(featureSums).forEach(featKey => {
+                    featureSums[featKey] += (item.ratings && item.ratings[featKey]) ? item.ratings[featKey] : 1;
+                });
+            });
+
+            // Update average & percentage values
+            const avgScore = sumOverall / total;
+            document.getElementById('stat-avg-rating').textContent = avgScore.toFixed(2);
+            document.getElementById('donut-text-val').textContent = avgScore.toFixed(1);
+
+            const posRate = (positiveCount / total) * 100;
+            document.getElementById('stat-positive-rate').textContent = Math.round(posRate) + '%';
+
+            // 1. Render Donut Chart segments
+            renderDonutChart(starCounts, total);
+
+            // 2. Render Bar Chart bars
+            renderBarChart(featureSums, total);
+
+            // 3. Render Feedback list
+            renderFeedbackFeed(data);
+        }
+
+        // Helper to reset UI when no data
+        function resetChartsUI() {
+            // Reset Donut Segments
+            for (let i = 1; i <= 5; i++) {
+                const seg = document.getElementById(`donut-segment-${i}`);
+                seg.setAttribute('stroke-dasharray', `0 251.2`);
+                seg.setAttribute('stroke-dashoffset', '0');
+                document.getElementById(`pct-rating-${i}`).textContent = '0%';
+            }
+            document.getElementById('donut-text-val').textContent = '0.0';
+
+            // Reset Bars
+            const features = ['register', 'fertilizer', 'yield', 'finance', 'harvest', 'ai'];
+            features.forEach(f => {
+                const bar = document.getElementById(`bar-${f}`);
+                bar.setAttribute('height', '0');
+                bar.setAttribute('y', '140');
+                document.getElementById(`val-${f}`).textContent = '0.0';
+                document.getElementById(`val-${f}`).setAttribute('y', '135');
+            });
+
+            // Reset Feed
+            document.getElementById('comments-feed-container').innerHTML = 
+                `<div style="text-align: center; color: var(--text-secondary); padding: 20px 0; font-size: 12px;">📂 ยังไม่มีข้อความติชมในตอนนี้</div>`;
+        }
+
+        // Donut Chart logic using SVG stroke dasharray
+        function renderDonutChart(counts, total) {
+            // Circumference of radius 40 is 2 * PI * 40 = 251.2
+            const circum = 251.2;
+            let currentOffset = 0;
+
+            for (let i = 5; i >= 1; i--) {
+                const count = counts[i] || 0;
+                const percentage = count / total;
+                const segmentLength = percentage * circum;
+                
+                const segElement = document.getElementById(`donut-segment-${i}`);
+                segElement.setAttribute('stroke-dasharray', `${segmentLength} ${circum - segmentLength}`);
+                segElement.setAttribute('stroke-dashoffset', -currentOffset);
+                
+                // Save percentage label
+                document.getElementById(`pct-rating-${i}`).textContent = Math.round(percentage * 100) + '%';
+                
+                currentOffset += segmentLength;
+            }
+        }
+
+        // Bar Chart heights
+        function renderBarChart(sums, total) {
+            const features = [
+                { id: 'register', key: 'feat-register' },
+                { id: 'fertilizer', key: 'feat-fertilizer' },
+                { id: 'yield', key: 'feat-yield' },
+                { id: 'finance', key: 'feat-finance' },
+                { id: 'harvest', key: 'feat-harvest' },
+                { id: 'ai', key: 'feat-ai' }
+            ];
+
+            const chartHeight = 120; // 140px (baseline) - 20px (highest) = 120px max height
+            const maxRating = 5;
+
+            features.forEach(f => {
+                const avg = sums[f.key] / total;
+                const barHeight = (avg / maxRating) * chartHeight;
+                const barY = 140 - barHeight;
+
+                const rect = document.getElementById(`bar-${f.id}`);
+                rect.setAttribute('height', barHeight);
+                rect.setAttribute('y', barY);
+
+                const label = document.getElementById(`val-${f.id}`);
+                label.textContent = avg.toFixed(1);
+                label.setAttribute('y', barY - 4);
+            });
+        }
+
+        // Render feed comments list
+        function renderFeedbackFeed(data) {
+            const container = document.getElementById('comments-feed-container');
+            const itemsWithComments = data.filter(item => item.comments.length > 0);
+
+            if (itemsWithComments.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: var(--text-secondary); padding: 20px 0; font-size: 12px;">📂 ยังไม่มีความคิดเห็นเพิ่มเติมในตอนนี้</div>`;
+                return;
+            }
+
+            container.innerHTML = itemsWithComments.map(item => {
+                const roleText = item.role === 'farmer' ? '🌾 ชาวไร่อ้อย' : '🧑‍🌾 พนักงานส่งเสริม';
+                const quotaText = item.quota ? `(โควตา: ${item.quota})` : '';
+                const date = new Date(item.timestamp).toLocaleDateString('th-TH', {
+                    day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit'
+                });
+                
+                // Display score stars
+                const scoreStars = '⭐'.repeat(item.overallRating);
+
+                return `
+                    <div class="comment-card">
+                        <div class="comment-meta">
+                            <span>${roleText} ${quotaText}</span>
+                            <span>${date}</span>
+                        </div>
+                        <div style="font-size:11px; margin-bottom:4px;">ระดับความพึงพอใจ: ${scoreStars} (${item.overallRating}/5)</div>
+                        <div class="comment-text">"${escapeHTML(item.comments)}"</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // HTML escaping
+        function escapeHTML(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Export data to Excel-ready CSV (with BOM for Thai characters)
+        function exportCSV() {
+            const data = getSurveyData();
+            if (data.length === 0) {
+                alert('ยังไม่มีข้อมูลสำหรับส่งออกครับ');
+                return;
+            }
+
+            // Headers
+            let csvContent = '\uFEFF'; // Thai UTF-8 BOM
+            csvContent += 'ไอดี,วันที่ประเมิน,กลุ่มผู้ใช้,รหัสพนักงาน/โควตา,พึงพอใจรวม,ดาว-ทะเบียนแปลง,ดาว-คำนวณปุ๋ย,ดาว-ประเมินผลผลิต,ดาว-งบการเงิน,ดาว-คิวตัดอ้อย,ดาว-บอทAI,ข้อติชมข้อเสนอแนะ\r\n';
+
+            // Rows
+            data.forEach(item => {
+                const id = item.id;
+                const date = new Date(item.timestamp).toLocaleString('th-TH');
+                const role = item.role === 'farmer' ? 'ชาวไร่อ้อย' : 'พนักงานส่งเสริม';
+                const quota = item.quota || '';
+                const overall = item.overallRating;
+                const rReg = item.ratings['feat-register'] || 1;
+                const rFert = item.ratings['feat-fertilizer'] || 1;
+                const rYield = item.ratings['feat-yield'] || 1;
+                const rFin = item.ratings['feat-finance'] || 1;
+                const rHarv = item.ratings['feat-harvest'] || 1;
+                const rAi = item.ratings['feat-ai'] || 1;
+                
+                // Escape double quotes in comments
+                const comments = `"${(item.comments || '').replace(/"/g, '""')}"`;
+
+                csvContent += `${id},${date},${role},${quota},${overall},${rReg},${rFert},${rYield},${rFin},${rHarv},${rAi},${comments}\r\n`;
+            });
+
+            // Create download anchor
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Smart_Farmer_Survey_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Confirm reset all survey data
+        function confirmResetData() {
+            if (confirm('⚠️ คุณต้องการลบข้อมูลสถิติประเมินความพึงพอใจทั้งหมดจริงใช่หรือไม่? ข้อมูลทั้งหมดจะไม่สามารถกู้คืนได้')) {
+                localStorage.removeItem(STORAGE_SURVEY_KEY);
+                alert('ล้างข้อมูลดิบแบบประเมินเรียบร้อยแล้วครับ');
+                renderAdminStats();
+            }
+        }
+
+        // Initial seeding of mock data to show dashboard metrics on fresh install
+        function initMockDataIfNeeded() {
+            const data = getSurveyData();
+            if (data.length > 0) return;
+
+            // Generate some realistic mock surveys representing farmers and staff
+            const mockSurveys = [
+                {
+                    id: 'mock1',
+                    timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+                    role: 'farmer',
+                    quota: '10485',
+                    overallRating: 5,
+                    ratings: { 'feat-register': 5, 'feat-fertilizer': 5, 'feat-yield': 4, 'feat-finance': 4, 'feat-harvest': 5, 'feat-ai': 5 },
+                    comments: 'โปรแกรมคำนวณปุ๋ยใช้งานดีมากๆ ครับ ช่วยประหยัดค่าปุ๋ยไปเยอะเลย'
+                },
+                {
+                    id: 'mock2',
+                    timestamp: new Date(Date.now() - 3600000 * 12).toISOString(),
+                    role: 'staff',
+                    quota: '0101',
+                    overallRating: 4,
+                    ratings: { 'feat-register': 4, 'feat-fertilizer': 5, 'feat-yield': 3, 'feat-finance': 4, 'feat-harvest': 4, 'feat-ai': 4 },
+                    comments: 'แถบเลื่อนจำลองผลผลิตทำให้คุยกับชาวไร่เข้าใจง่ายขึ้น อยากให้ปรับปรุงแผนที่ให้โหลดไวขึ้นอีกนิดนึงครับ'
+                },
+                {
+                    id: 'mock3',
+                    timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
+                    role: 'farmer',
+                    quota: '08542',
+                    overallRating: 5,
+                    ratings: { 'feat-register': 5, 'feat-fertilizer': 4, 'feat-yield': 5, 'feat-finance': 5, 'feat-harvest': 5, 'feat-ai': 3 },
+                    comments: 'ชอบปุ่มส่งออกข้อมูลไป Google Sheets มากครับ ทำให้เอาไปจดต่อได้ง่ายขึ้น'
+                },
+                {
+                    id: 'mock4',
+                    timestamp: new Date(Date.now() - 3600000 * 48).toISOString(),
+                    role: 'farmer',
+                    quota: 'ไม่ระบุ',
+                    overallRating: 3,
+                    ratings: { 'feat-register': 3, 'feat-fertilizer': 3, 'feat-yield': 2, 'feat-finance': 3, 'feat-harvest': 4, 'feat-ai': 2 },
+                    comments: 'บอท AI แนะนำบางคำถามงงนิดนึง แต่ระบบแจ้งคิวและแจ้งการสูญเสียของอ้อยดีมาก ชัดเจนดี'
+                }
+            ];
+
+            localStorage.setItem(STORAGE_SURVEY_KEY, JSON.stringify(mockSurveys));
+        }
+    </script>
+</body>
+</html>

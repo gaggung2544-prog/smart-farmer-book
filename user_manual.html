@@ -4,160 +4,846 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>คู่มือการใช้งาน Smart Farmer Book</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --brand-green: #2E7D32;
-            --brand-gold: #D4A373;
-            --text-main: #202124;
-            --bg-color: #f0f2f5;
+            --brand-navy: #0F2C59;
+            --brand-blue: #1E40AF;
+            --brand-sky: #38BDF8;
+            --brand-gold: #c49d4f;
+            --brand-green: #153c25;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --bg-light: #f8fafc;
+            --border-color: #e2e8f0;
         }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             font-family: 'Sarabun', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            line-height: 1.7;
+            padding: 0;
         }
-        .page {
-            max-width: 800px;
+
+        /* Container & Grid Layout */
+        .container {
+            max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            padding: 40px 50px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            border-radius: 8px;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 30px;
         }
-        h1, h2, h3 {
-            color: var(--brand-green);
-        }
-        h1 { text-align: center; font-size: 28px; border-bottom: 2px solid var(--brand-green); padding-bottom: 10px; margin-bottom: 30px; }
-        h2 { font-size: 22px; margin-top: 30px; border-left: 5px solid var(--brand-gold); padding-left: 10px; }
-        h3 { font-size: 18px; margin-top: 20px; color: #444; }
-        p, li { font-size: 16px; }
-        ul { padding-left: 20px; }
-        .btn-print {
-            display: block;
-            width: 250px;
-            margin: 0 auto 30px auto;
-            padding: 15px;
-            background-color: var(--brand-green);
+
+        /* Top Header Area */
+        header {
+            background: linear-gradient(135deg, var(--brand-navy) 0%, #1e293b 100%);
             color: white;
+            padding: 40px 20px;
             text-align: center;
-            border: none;
+            border-bottom: 4px solid var(--brand-gold);
+            position: relative;
+        }
+
+        header img.logo {
+            max-width: 150px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        header h1 {
+            font-family: 'Prompt', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        header p {
+            font-size: 16px;
+            color: #cbd5e1;
+        }
+
+        /* Floating Action Buttons */
+        .header-actions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background-color: var(--brand-gold);
+            color: white;
+            text-decoration: none;
             border-radius: 25px;
-            font-size: 18px;
+            font-family: 'Prompt', sans-serif;
             font-weight: 600;
+            font-size: 14px;
+            border: none;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: 0.3s;
-            font-family: 'Sarabun', sans-serif;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            transition: all 0.3s;
         }
-        .btn-print:hover {
-            background-color: #1b5e20;
+
+        .btn-action:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            filter: brightness(1.1);
         }
-        .alert-box {
-            background-color: #E8F5E9;
-            border-left: 4px solid var(--brand-green);
+
+        .btn-action.btn-navy {
+            background-color: var(--brand-blue);
+        }
+
+        /* Sidebar Navigation */
+        aside {
+            position: sticky;
+            top: 20px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(15, 44, 89, 0.04);
+        }
+
+        aside h3 {
+            font-family: 'Prompt', sans-serif;
+            font-size: 16px;
+            color: var(--brand-navy);
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        aside ul {
+            list-style: none;
+        }
+
+        aside li {
+            margin-bottom: 8px;
+        }
+
+        aside a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13.5px;
+            display: block;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        aside a:hover, aside a.active {
+            background-color: #f1f5f9;
+            color: var(--brand-navy);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        main {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(15, 44, 89, 0.04);
+        }
+
+        section {
+            margin-bottom: 50px;
+            scroll-margin-top: 30px;
+        }
+
+        section:not(:last-child) {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 40px;
+        }
+
+        h2 {
+            font-family: 'Prompt', sans-serif;
+            font-size: 24px;
+            color: var(--brand-navy);
+            margin-bottom: 20px;
+            border-left: 5px solid var(--brand-gold);
+            padding-left: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h3 {
+            font-family: 'Prompt', sans-serif;
+            font-size: 18px;
+            color: #334155;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: var(--text-primary);
+            font-size: 15px;
+        }
+
+        ul, ol {
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 14.5px;
+        }
+
+        strong {
+            color: var(--brand-navy);
+        }
+
+        /* Visual Screenshot Wrapper */
+        .screenshot-box {
+            text-align: center;
+            margin: 25px 0;
             padding: 15px;
-            margin: 20px 0;
-            border-radius: 0 4px 4px 0;
+            background: #f1f5f9;
+            border-radius: 16px;
+            border: 1px solid #cbd5e1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        
-        /* ซ่อนปุ่ม Print เมื่อสั่งพิมพ์ */
+
+        .screenshot-box img {
+            max-width: 320px;
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(15, 44, 89, 0.15);
+            border: 2px solid white;
+            transition: transform 0.3s ease;
+        }
+
+        .screenshot-box img:hover {
+            transform: scale(1.02);
+        }
+
+        .screenshot-box span.caption {
+            display: block;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Banner Box */
+        .banner-box {
+            width: 100%;
+            margin-bottom: 25px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .banner-box img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Alerts & Callouts */
+        .alert-callout {
+            background-color: #f0f9ff;
+            border-left: 4px solid var(--brand-sky);
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 20px 0;
+        }
+
+        .alert-callout.alert-warning {
+            background-color: #fffbeb;
+            border-left-color: #f59e0b;
+        }
+
+        .alert-callout.alert-success {
+            background-color: #f0fdf4;
+            border-left-color: #22c55e;
+        }
+
+        .alert-callout h4 {
+            font-family: 'Prompt', sans-serif;
+            font-size: 14.5px;
+            margin-bottom: 5px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Steps Block */
+        .step-list {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+
+        .step-list li {
+            position: relative;
+            padding-left: 45px;
+            margin-bottom: 20px;
+        }
+
+        .step-list li::before {
+            counter-increment: step-counter;
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 30px;
+            height: 30px;
+            background-color: var(--brand-navy);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Prompt', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        /* Printable optimization */
         @media print {
-            body { background-color: white; padding: 0; }
-            .page { box-shadow: none; padding: 0; max-width: 100%; border-radius: 0; }
-            .btn-print { display: none !important; }
+            body {
+                background-color: white;
+                color: black;
+            }
+            .container {
+                display: block;
+                max-width: 100%;
+                padding: 0;
+            }
+            aside, .header-actions, .btn-action {
+                display: none !important;
+            }
+            main {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+            }
+            section {
+                page-break-inside: avoid;
+                margin-bottom: 40px;
+                padding-bottom: 20px;
+            }
+            .screenshot-box {
+                background: none;
+                border: none;
+                padding: 0;
+                margin: 15px 0;
+                page-break-inside: avoid;
+            }
+            .screenshot-box img {
+                max-width: 250px;
+                box-shadow: none;
+                border: 1px solid #777;
+            }
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            aside {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 30px 15px;
+            }
+            header h1 {
+                font-size: 24px;
+            }
+            header p {
+                font-size: 13px;
+            }
+            .header-actions {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+                width: 100%;
+            }
+            .btn-action {
+                width: 100%;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+            .container {
+                padding: 10px;
+                gap: 15px;
+            }
+            main {
+                padding: 20px 15px;
+            }
+            h2 {
+                font-size: 20px;
+            }
+            h3 {
+                font-size: 16px;
+            }
+            p, li {
+                font-size: 14px;
+                line-height: 1.6;
+            }
+            .screenshot-box {
+                padding: 10px;
+                margin: 15px 0;
+            }
+            .screenshot-box img {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
 <body>
 
-    <button class="btn-print" onclick="window.print()">📥 บันทึกเป็น PDF (Print)</button>
-
-    <div class="page">
-        <h1>📖 คู่มือการใช้งาน Smart Farmer Book</h1>
-        <p style="text-align: center;"><strong>เวอร์ชัน 2.0 (อัปเดตล่าสุด)</strong></p>
-
-        <p>ยินดีต้อนรับสู่แอปพลิเคชัน <strong>Smart Farmer Book</strong> แอปคู่ใจชาวไร่อ้อยที่ถูกออกแบบมาเพื่อให้การจัดการแปลงอ้อยเป็นเรื่องง่าย แม่นยำ และเชื่อมโยงข้อมูลกับโรงงานน้ำตาลได้ทันที</p>
+    <header>
+        <img class="logo" src="smart_farmer_logo.png" alt="Smart Farmer Logo">
+        <h1>คู่มือการใช้งาน Smart Farmer Book</h1>
+        <p>สมุดบันทึกดิจิทัลชาวไร่อัจฉริยะ พกพาง่าย ใช้งานได้ทุกที่ แม้ไม่มีอินเทอร์เน็ต</p>
         
-        <hr style="border: 1px solid #eee; margin: 30px 0;">
+        <div class="header-actions">
+            <button class="btn-action" onclick="window.print()">📥 บันทึกคู่มือเป็น PDF / พิมพ์</button>
+            <a href="index.html" class="btn-action btn-navy" target="_blank">📲 เปิดเข้าสู่แอปพลิเคชัน</a>
+        </div>
+    </header>
 
-        <h2>👨‍🌾 ส่วนที่ 1: สำหรับเกษตรกรชาวไร่อ้อย</h2>
+    <div class="container">
         
-        <h3>1. การเข้าสู่ระบบ (Login)</h3>
-        <ul>
-            <li><strong>ล็อกอินด้วยใบหน้า (Face Sync):</strong> ให้ชาวไร่มองกล้องและทำตามคำแนะนำด้วยเสียง (เช่น หันซ้าย กะพริบตา) เพื่อยืนยันตัวตน ระบบจะจดจำและเข้าสู่หน้าแรกอัตโนมัติ</li>
-            <li><strong>รหัสพาสโค้ด (Passcode):</strong> สามารถใช้รหัสพาสโค้ด 6 หลักที่ตั้งไว้ในการเข้าสู่ระบบแทนได้ หากสภาพแสงไม่เอื้ออำนวย</li>
-        </ul>
+        <!-- Sidebar Navigation Menu -->
+        <aside>
+            <h3>สารบัญคู่มือ</h3>
+            <ul>
+                <li><a href="#intro">1. บทนำและคุณสมบัติเด่น</a></li>
+                <li><a href="#pwa">2. วิธีติดตั้งแอปลงบนมือถือ</a></li>
+                <li><a href="#login">3. ขั้นตอนการเข้าสู่ระบบ</a></li>
+                <li><a href="#dashboard">4. หน้าแรก & ป้ายเตือน</a></li>
+                <li><a href="#register">5. ทะเบียนแจ้งปลูกใหม่</a></li>
+                <li><a href="#map">6. แผนที่แปลงอัจฉริยะ (GIS)</a></li>
+                <li><a href="#estimate">7. จำลองผลผลิต (Slider)</a></li>
+                <li><a href="#cost">8. บันทึกต้นทุนแปลง</a></li>
+                <li><a href="#harvest">9. บันทึกตัดอ้อย & การสูญเสีย</a></li>
+                <li><a href="#pest">10. สแกนโรคและแมลงด้วย AI</a></li>
+                <li><a href="#support">11. สนับสนุน & แชทบอท AI</a></li>
+                <li><a href="#analytics">12. วิเคราะห์สถิติ & อันดับ</a></li>
+                <li><a href="#staff">13. โหมดเจ้าหน้าที่ส่งเสริม</a></li>
+                <li><a href="#settings">14. การตั้งค่า & สำรองข้อมูล</a></li>
+            </ul>
+        </aside>
 
-        <h3>2. การลงทะเบียนแปลงและการวาดขอบเขตไร่ (GPS & Polygon)</h3>
-        <ul>
-            <li>ไปที่หน้า <strong>"ข้อมูลแปลงอ้อย (Plots)"</strong> กดปุ่มสีเขียว <strong>"เพิ่มแปลงใหม่"</strong></li>
-            <li>กรอกชื่อแปลง, เลือกสายพันธุ์อ้อย, และระบุขนาดพื้นที่ (ไร่)</li>
-            <li><strong>การดึงพิกัด (GPS):</strong> ให้ไปยืนอยู่บริเวณแปลงอ้อย จากนั้นกดปุ่มดึงพิกัด ระบบจะบันทึกละติจูดและลองจิจูดให้เอง</li>
-            <li>หากต้องการให้เจ้าหน้าที่มองเห็นขอบเขตไร่ที่ชัดเจน ท่านสามารถรอให้เจ้าหน้าที่ส่งเสริมเข้ามาวาดกรอบพื้นที่ (Polygon) ให้ผ่านแท็บเล็ตของเจ้าหน้าที่ได้</li>
-        </ul>
+        <!-- Main Content Area -->
+        <main>
+            
+            <div class="banner-box">
+                <img src="smart_farmer_banner.png" alt="Smart Farmer Banner">
+            </div>
 
-        <h3>3. การประเมินผลผลิตอ้อย (Yield Estimator)</h3>
-        <p>ฟังก์ชันไฮไลต์ที่จะช่วยให้ชาวไร่รู้ล่วงหน้าว่าจะได้อ้อยกี่ตัน</p>
-        <ul>
-            <li>ไปที่เมนู <strong>"ประเมินผลผลิตอ้อย"</strong></li>
-            <li>ใส่ข้อมูลที่วัดได้จริงจากไร่: <strong>ระยะห่างร่องอ้อย (เมตร), ความยาวลำอ้อยเฉลี่ย (เซนติเมตร), และจำนวนลำอ้อยต่อ 10 เมตร</strong></li>
-            <li>ระบบคำนวณและแสดงผลออกมาเป็น <strong>"น้ำหนักตันต่อไร่"</strong> และ <strong>"ผลผลิตรวมทั้งหมด"</strong> ทันที</li>
-            <li>กดบันทึก ข้อมูลจะถูกส่งตรงไปที่ฐานข้อมูลของโรงงาน</li>
-        </ul>
+            <!-- SECTION 1: Introduction -->
+            <section id="intro">
+                <h2>🎋 1. บทนำและคุณสมบัติเด่น</h2>
+                <p>ยินดีต้อนรับสู่แอปพลิเคชัน <strong>Smart Farmer Book</strong> เพื่อนคู่คิดสำหรับพี่น้องชาวไร่อ้อยและพนักงานส่งเสริมการเกษตรของโรงงานน้ำตาล แอปนี้พัฒนาขึ้นเพื่อเปลี่ยนการจดบันทึกในสมุดกระดาษแบบเดิมๆ มาเป็นระบบดิจิทัลที่ใช้งานง่าย สะดวก รวดเร็ว และเพิ่มประสิทธิภาพการบำรุงรักษาไร่อ้อยอย่างยั่งยืน</p>
+                
+                <h3>คุณสมบัติเด่นของระบบ:</h3>
+                <ul>
+                    <li><strong>ทำงานออฟไลน์ 100% (Offline Resilience):</strong> บันทึกพิกัด จดต้นทุน หรือดูสถิติได้ในไร่อ้อยโดยไม่ต้องมีสัญญาณอินเทอร์เน็ต ระบบจะบันทึกข้อมูลเก็บในเครื่องอย่างปลอดภัย และอัปโหลดประสานข้อมูล (Auto-Sync) ขึ้นคลาวด์อัตโนมัติเมื่อมีเน็ต</li>
+                    <li><strong>ภาพรวมข้อมูลอัจฉริยะ:</strong> มีระบบพยากรณ์ผลผลิตและประเมินกำไรสะสมก่อนเก็บเกี่ยว วิเคราะห์จุดคุ้มทุนเรียลไทม์ และระบบสแกนตรวจสอบโรคอ้อยด้วยปัญญาประดิษฐ์ (AI)</li>
+                    <li><strong>การเข้าถึงสำหรับทุกคน:</strong> รองรับการสั่งเปิดเสียงบรรยายการใช้งานเป็นภาษาอีสานหรือภาษาไทยกลาง พร้อมระบบขยายขนาดอักษรเพื่อเอื้ออำนวยแก่ผู้สูงอายุ</li>
+                </ul>
+            </section>
 
-        <div class="alert-box">
-            <strong>💡 ทริคแนะนำ:</strong> การประเมินที่แม่นยำที่สุด ควรทำเมื่ออ้อยมีอายุ 8-10 เดือน และควรสุ่มวัดหลายๆ จุดในแปลง
-        </div>
+            <!-- SECTION 2: PWA Installation -->
+            <section id="pwa">
+                <h2>📲 2. วิธีติดตั้งแอปลงบนมือถือ (PWA)</h2>
+                <p>Smart Farmer Book เป็นเว็บแอปพลิเคชันประเภท <strong>Progressive Web App (PWA)</strong> ซึ่งท่านสามารถติดตั้งลงในหน้าจอโฮมของโทรศัพท์มือถือเสมือนแอปพลิเคชันทั่วไป โดยไม่ต้องโหลดผ่าน App Store หรือ Play Store:</p>
+                
+                <h3>วิธีการติดตั้งบนระบบ iOS (iPhone / iPad - เบราว์เซอร์ Safari):</h3>
+                <ol class="step-list">
+                    <li>เปิดลิงก์แอปพลิเคชันผ่านเบราว์เซอร์ <strong>Safari</strong></li>
+                    <li>แตะปุ่มแชร์ <strong>[⎋]</strong> บริเวณเมนูด้านล่างสุดของหน้าจอ</li>
+                    <li>เลื่อนหาเมนูและเลือก <strong>"เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)</strong></li>
+                    <li>กดปุ่ม <strong>"เพิ่ม" (Add)</strong> มุมบนขวา แอปจะปรากฏบนหน้าจอโฮมของท่านทันที</li>
+                </ol>
 
-        <h3>4. เครื่องมือสแกนโรคและแมลงด้วย AI (Pest Scanner)</h3>
-        <ul>
-            <li>เมื่อพบความผิดปกติบนใบอ้อย ให้ไปที่เมนู <strong>"AI สแกนโรคพืช"</strong></li>
-            <li>ถ่ายรูปใบอ้อยที่มีปัญหา ระบบ AI จะตีกรอบพื้นที่โรค (Masking) และแจ้งผลเบื้องต้นว่าเป็นโรคหรือแมลงชนิดใด</li>
-            <li>พิกัดของจุดที่เกิดโรคจะถูกส่งไปแสดงบนแผนที่ (Outbreak Map) ของเจ้าหน้าที่ทันที เพื่อให้ส่งยาหรือเข้ามาช่วยเหลือได้ทันเวลา</li>
-        </ul>
+                <h3>วิธีการติดตั้งบนระบบ Android (เบราว์เซอร์ Chrome):</h3>
+                <ol class="step-list">
+                    <li>เปิดลิงก์แอปพลิเคชันผ่านเบราว์เซอร์ <strong>Chrome</strong></li>
+                    <li>จะมีแถบสีฟ้าแจ้งเตือน <strong>"ติดตั้งแอปพลิเคชันลงบนมือถือ"</strong> ปรากฏขึ้นมา หรือแตะจุดสามจุดบริเวณมุมขวาบนของ Chrome แล้วเลือก <strong>"ติดตั้งแอป" (Install App)</strong></li>
+                    <li>กดยืนยันการติดตั้ง ระบบจะจัดสร้างไอคอนแอปบนหน้าจอโฮมและหน้าจอแอปรวมทันที</li>
+                </ol>
 
-        <h3>5. การจองคิวรถตัดและคิวส่งอ้อย (Harvesting Queue)</h3>
-        <ul>
-            <li>ไปที่เมนู <strong>"คิวตัดอ้อย"</strong> เมื่อความหวาน (CCS) ได้มาตรฐานแล้ว</li>
-            <li>เลือกแปลงที่ต้องการตัด ระบุวันที่ต้องการให้รถตัดเข้า และเลือกประเภทอ้อย (อ้อยสด / อ้อยไฟไหม้)</li>
-            <li>เจ้าหน้าที่จะตรวจสอบคิวในระบบ และอนุมัติการส่งอ้อยเข้าหีบกลับมาให้ชาวไร่ทราบ</li>
-        </ul>
+                <div class="alert-callout alert-success">
+                    <h4>💡 ประโยชน์ของการติดตั้งแอป:</h4>
+                    <p>ช่วยให้เปิดแอปได้รวดเร็วขึ้นผ่านหน้าจอโฮม ทำงานแบบเต็มจอไม่มีแถบที่อยู่เว็บรบกวนสายตา และสามารถเรียกเปิดใช้งานบันทึกข้อมูลแปลงได้ในพื้นที่ป่าหรือหุบเขาที่ไม่มีสัญญาณอินเทอร์เน็ตเลยได้อย่างสมบูรณ์แบบ</p>
+                </div>
+            </section>
 
-        <hr style="border: 1px solid #eee; margin: 40px 0;">
+            <!-- SECTION 3: Login Flow -->
+            <section id="login">
+                <h2>🔐 3. ขั้นตอนการเข้าสู่ระบบแบบปลอดภัย</h2>
+                <p>ระบบตรวจสอบสิทธิ์และยืนยันบุคคลแบบหลายขั้นตอนเพื่อความปลอดภัยสูงสุดของข้อมูลเกษตรกร:</p>
+                
+                <ol class="step-list">
+                    <li><strong>เลือกบทบาทผู้ใช้:</strong> แตะปุ่มเลือกประเภทผู้ใช้ระหว่าง <strong>"ชาวไร่อ้อย"</strong> หรือ <strong>"เจ้าหน้าที่ส่งเสริม"</strong></li>
+                    <li><strong>กรอกข้อมูลระบุตัวตน:</strong> 
+                        <ul>
+                            <li><strong>สำหรับชาวไร่:</strong> กรอกเลขโควตาชาวไร่ 5 หลัก (เช่น <code>12345</code>) และกรอกเบอร์โทรศัพท์ที่ใช้ลงทะเบียน</li>
+                            <li><strong>สำหรับเจ้าหน้าที่:</strong> กรอกรหัสประจำตัวเจ้าหน้าที่ 4 หลัก (เช่น <code>0101</code>) และเบอร์โทรศัพท์</li>
+                        </ul>
+                    </li>
+                    <li><strong>นโยบายความเป็นส่วนตัว (PDPA):</strong> อ่านนโยบายการจัดเก็บพิกัด รูปถ่าย และข้อมูล และติ๊กเลือกยินยอมข้อตกลงเพื่อความคุ้มครองข้อมูลส่วนบุคคล</li>
+                    <li><strong>ยืนยันรหัส OTP 6 หลัก:</strong> ระบบจะทำการจัดส่งข้อความรหัสผ่านครั้งเดียว (OTP) ไปยังเบอร์มือถือของท่านผ่านผู้ให้บริการจริง (Twilio หรือ ThaiBulkSMS) ให้กรอกรหัสและกดยืนยัน</li>
+                    <li><strong>สแกนใบหน้ายืนยันตัวตน (Face Capture):</strong> กล้องโทรศัพท์จะเปิดขึ้นมา ให้จัดวางใบหน้าให้อยู่ในกรอบวงกลมบนหน้าจอ แล้วแตะ <strong>"ถ่ายภาพใบหน้า"</strong> เพื่อให้กล้องจับภาพและประมวลผลเทียบกับฐานข้อมูล จากนั้นกด <strong>"ยืนยันตัวตนและเข้าสู่ระบบ"</strong> เพื่อเริ่มต้นใช้งานหน้าแรก</li>
+                </ol>
+            </section>
 
-        <h2>👨‍💼 ส่วนที่ 2: สำหรับเจ้าหน้าที่ส่งเสริม (Promoter)</h2>
+            <!-- SECTION 4: Dashboard & Smart Alert -->
+            <section id="dashboard">
+                <h2>🏠 4. หน้าแรก & ป้ายเตือนภัยอัจฉริยะ (Dashboard & Alerts)</h2>
+                <p>หน้าแรกคือศูนย์กลางการควบคุมทั้งหมดของเกษตรกร ประกอบไปด้วยข้อมูลพื้นฐานที่จำเป็น:</p>
+                
+                <ul>
+                    <li><strong>ปุ่มตั้งค่าด่วน (⚙️):</strong> เข้าสู่หน้าจอจัดการเสียงบรรยาย, ขนาดตัวอักษร, และระบบสำรองข้อมูล</li>
+                    <li><strong>ข้อมูลความร่วมมือ:</strong> แสดงชื่อเกษตรกร, ยอดโควตาส่งเสริม, สภาพอากาศวันนี้, และจำนวนแปลงอ้อยสะสม</li>
+                    <li><strong>รายการแปลงอ้อยทั้งหมด:</strong> แสดงเป็นการ์ดแยกแต่ละแปลง ระบุสายพันธุ์ พื้นที่ อายุอ้อยเป็นเดือน และปุ่มคำสั่งด่วน</li>
+                </ul>
 
-        <h3>1. การเข้าสู่แดชบอร์ดเจ้าหน้าที่</h3>
-        <ul>
-            <li>ที่หน้าแรกของแอป ให้กดเมนู <strong>"สำหรับเจ้าหน้าที่"</strong> มุมขวาล่าง</li>
-            <li>กรอกรหัสพนักงาน (Staff ID) และรหัสพาสโค้ดที่ได้รับจากส่วนกลาง (เช่น <code>SF-01</code>)</li>
-        </ul>
+                <h3>📢 แถบแจ้งเตือนข่าวสารส่งเสริมชาวไร่ความคมชัดสูง (Golden Announcement Ticker):</h3>
+                <p>ที่ด้านบนสุดของหน้าแดชบอร์ด ระบบจะแสดงแถบข้อความวิ่งสไตล์หรูหราสีครีมขอบทองสองชั้น (Double Golden Border) พร้อมป้ายริบบิ้นสีทองเด่นชัด โดยมีคุณสมบัติดังนี้:</p>
+                <ul>
+                    <li><strong>การเน้นย้ำความอ่านง่ายเพื่อผู้สูงอายุ (Elderly Visual Aid):</strong> แถบวิ่งใช้สีตัวอักษรเป็น **สีน้ำเงินเข้มข้น (#0F2C59)** บนการ์ดพื้นหลังสีครีมสว่าง ให้คอนทราสต์และความสว่างสูงสุด ตัวอักษรหนาเป็นพิเศษและเคลื่อนที่ในความเร็วที่พอเหมาะ ช่วยให้เกษตรกรวัย 55+ หรือมีปัญหาสายตาสามารถจ้องมองและอ่านข้อความได้อย่างสบายตา</li>
+                    <li><strong>ไอคอนตกแต่งทางการเกษตร:</strong> มีรูปใบอ้อย/รวงข้าวและกระสอบปุ๋ยเคมีนำสายตาทางด้านซ้ายและขวาเพื่อให้เข้าใจวัตถุประสงค์การสื่อสารได้ทันที</li>
+                    <li><strong>กดเพื่อเปิดดูฉบับเต็ม:</strong> คุณสามารถแตะบริเวณแถบวิ่งเพื่อเปิดดูหนังสือประกาศ/บันทึกข้อความส่งเสริมฉบับเต็มอย่างเป็นทางการได้ทันทีในหน้าต่างป๊อปอัป</li>
+                </ul>
 
-        <h3>2. การจัดการคำขอและยืนยันแนวเขตไร่ (Polygon Verification)</h3>
-        <ul>
-            <li>แดชบอร์ดจะแสดง <strong>"รายการแปลงที่รอตรวจสอบ"</strong> จากชาวไร่ในโซนรับผิดชอบของคุณ</li>
-            <li>กดปุ่ม <strong>"ตรวจสอบขอบเขต (Polygon)"</strong> เพื่อเข้าสู่ระบบแผนที่ GIS</li>
-            <li><strong>แผนที่ระยะห่าง:</strong> ระบบจะคำนวณพิกัดของคุณ กับพิกัดที่ชาวไร่ปักหมุดไว้ (Haversine Distance) หากอยู่ไกลเกินกำหนด แผนที่จะเปลี่ยนเป็นระบบ Canvas Radar เพื่อนำทางเข้าหาแปลง</li>
-            <li>เมื่อยืนยันว่าแปลงถูกต้อง ให้กรอก <strong>"รหัสแปลงโควตาโรงงาน (Factory Plot Code)"</strong> เช่น <code>45-0213</code> และกดยืนยัน</li>
-        </ul>
+                <h3>🚨 ป้ายเตือนภัยอัจฉริยะ (Smart Alert Banner):</h3>
+                <p>ที่ด้านบนของรายการแปลง หากตรวจพบปัญหาสำคัญเกี่ยวกับแปลงอ้อยของท่าน ระบบจะแสดงแถบแจ้งเตือนระดับวิกฤต เช่น:</p>
+                <ul>
+                    <li><strong>ป้ายสีแดงเตือนศัตรูพืชระบาด:</strong> ตรวจพบพิกัดสแกนแมลงหรือหนอนกอระบาดในพื้นที่ใกล้เคียงแนวเขตแปลงของท่าน เพื่อแจ้งให้รีบตรวจบำรุงรักษา</li>
+                    <li><strong>ป้ายเตือนผลผลิตต่ำกว่าเป้าหมาย:</strong> แปลงอ้อยใดที่พยากรณ์ผลผลิตได้น้อยกว่า 6 ตันต่อไร่ ระบบจะขึ้นเตือนสีส้มเพื่อให้ท่านเร่งบำรุงปุ๋ยและน้ำ</li>
+                </ul>
+            </section>
 
-        <h3>3. ระบบแจ้งเตือนอัจฉริยะ (Smart Alerts & Analytics)</h3>
-        <ul>
-            <li>หน้า Analytics จะทำการดึงข้อมูลพฤติกรรมในแปลงมาแสดงผล</li>
-            <li>ป้ายแจ้งเตือนสีแดง (Danger) จะโชว์ขึ้นอัตโนมัติ เช่น หากพบว่าผลประเมินต่ำกว่า 6 ตัน/ไร่ หรือพบพิกัดสแกนแมลงหนอนกอระบาดในพื้นที่</li>
-            <li>สามารถสรุปตัวเลขเหล่านี้ เพื่อประชุมทีมหรือโทรให้คำปรึกษาชาวไร่ได้ตรงจุด</li>
-        </ul>
+            <!-- SECTION 5: Plot Registration -->
+            <section id="register">
+                <h2>📍 5. การแจ้งทะเบียนปลูกอ้อยใหม่ (Plot Registration)</h2>
+                <p>ฟังก์ชันลงทะเบียนแจ้งพิกัดและขนาดแปลง เพื่อส่งเสริมและรายงานโรงงานน้ำตาล:</p>
+                
+                <div class="screenshot-box">
+                    <img src="menu_register.png" alt="หน้าเมนูแจ้งปลูกอ้อยใหม่">
+                    <span class="caption">รูปภาพที่ 1: หน้าจอการลงทะเบียนและแจ้งปลูกแปลงอ้อยใหม่</span>
+                </div>
 
-        <div style="text-align: center; margin-top: 50px; color: #777; font-size: 14px;">
-            -- สิ้นสุดคู่มือการใช้งาน --
-        </div>
+                <h3>ขั้นตอนการขึ้นทะเบียนแปลง:</h3>
+                <ol class="step-list">
+                    <li>แตะปุ่มด่วน <strong>"➕ บันทึกด่วน"</strong> บริเวณกึ่งกลางแถบนำทางด้านล่าง แล้วเลือก <strong>"ขึ้นทะเบียนแจ้งปลูกใหม่"</strong> (หรือกด <strong>"ลงทะเบียนแปลงใหม่"</strong> จากหน้าแรก)</li>
+                    <li>กรอก <strong>ชื่อแปลง</strong> เช่น <code>ไร่อ้อยสวนตาลแปลง 1</code></li>
+                    <li>ป้อน <strong>ขนาดพื้นที่ปลูกจริง</strong> เป็นหน่วยไร่</li>
+                    <li>เลือก <strong>สายพันธุ์อ้อยที่ปลูก:</strong> เช่น ขอนแก่น 3, LK92-11 หรืออ้อยโรงงานสายพันธุ์อื่นๆ</li>
+                    <li>ระบุ <strong>วันที่ปลูกอ้อย:</strong> สำหรับนำไปประเมินคำนวณอายุอ้อยจริง ณ ปัจจุบันอัตโนมัติ</li>
+                    <li>ป้อน <strong>เป้าหมายผลผลิต (ตันต่อไร่):</strong> สำหรับใช้คำนวณเปรียบเทียบจุดคุ้มทุนทางการเงิน</li>
+                    <li><strong>ปักหมุดบันทึกพิกัดตำแหน่งแปลง (📍):</strong> แตะปุ่ม <strong>"📍 ดึงพิกัด GPS ปัจจุบัน"</strong> ขณะยืนอยู่บริเวณไร่อ้อย
+                        <div class="alert-callout alert-warning" style="margin-top: 10px; margin-bottom: 0;">
+                            <h4>🛡️ ระบบคัดกรองความแม่นยำพิกัด (GPS Accuracy Filter):</h4>
+                            <p>แอปพลิเคชันจะเช็คระดับสัญญาณและความเที่ยงตรงของ GPS:
+                            <br>🟢 <strong>ความแม่นยำดีเยี่ยม (แถบสีเขียว):</strong> พิกัดคลาดเคลื่อนน้อยกว่า 15 เมตร สามารถกดบันทึกได้ทันที
+                            <br>🟡 <strong>ความแม่นยำต่ำ/กำลังรับสัญญาณ (แถบสีส้ม):</strong> พิกัดคลาดเคลื่อนเกิน 15 เมตร แนะนำให้รอสัญญาณดาวเทียมครู่หนึ่งหรือย้ายไปยังจุดที่ไม่มีเงาไม้ตึกบดบัง เพื่อป้องกันการปักหมุดแปลงเกษตรคลาดเคลื่อน</p>
+                        </div>
+                    </li>
+                    <li>กดปุ่ม <strong>"💾 บันทึกข้อมูลทะเบียนแปลง"</strong> เพื่อจัดเก็บแปลงเข้าสู่ระบบ</li>
+                </ol>
+            </section>
 
+            <!-- SECTION 6: GIS Map -->
+            <section id="map">
+                <h2>🗺️ 6. ระบบแผนที่แปลงอัจฉริยะ (Smart GIS Map)</h2>
+                <p>เข้าใช้งานเมนูแผนที่ผ่านแท็บ <strong>"แผนที่"</strong> บนแถบเมนูด้านล่าง:</p>
+                
+                <h3>ฟังก์ชันการทำงานหลัก:</h3>
+                <ul>
+                    <li><strong>แสดงแปลงอ้อยทั้งหมด:</strong> แผนที่จะแสดงขอบเขตแนวที่ดินทำกินของท่านทุกแปลงที่ปักหมุดไว้</li>
+                    <li><strong>แผนที่ออฟไลน์ (Offline Tile Storage):</strong> แผนที่นี้ใช้ฐานข้อมูลดาวเทียมร่วมกับระบบแคชออฟไลน์ ซึ่งเบราว์เซอร์จะเก็บข้อมูลแผนที่บริเวณแปลงของท่านสูงสุดถึง 300 แผ่น ทำให้ท่านเรียกดูแผนที่ขยายดูขอบเขตแนวที่ดินในป่าได้แม้เครื่องไม่มีการเชื่อมต่อเน็ต</li>
+                    <li><strong>การแสดงจุดระบาดศัตรูพืช:</strong> มีการปักหมุดสัญลักษณ์แมลงสีแดงบนแผนที่ ณ จุดที่ชาวไร่ในโซนสแกนพบหนอนกอหรือโรคใบขาว ช่วยให้ท่านรู้ทันสถานการณ์ความเสี่ยงรอบตัว</li>
+                </ul>
+            </section>
+
+            <!-- SECTION 7: Yield Slider & ROI -->
+            <section id="estimate">
+                <h2>📊 7. จำลองและประเมินผลผลิต (Yield Slider & ROI)</h2>
+                <p>ประเมินพยากรณ์ปริมาณอ้อยก่อนการส่งหีบ เพื่อวางแผนบริหารการขายและจัดการกระแสเงินสดล่วงหน้า:</p>
+
+                <div class="screenshot-box">
+                    <img src="menu_estimate.png" alt="หน้าเมนูประเมินผลผลิต">
+                    <span class="caption">รูปภาพที่ 2: หน้าจอเครื่องมือพยากรณ์ผลผลิตและวิเคราะห์สถานะการเงิน</span>
+                </div>
+
+                <h3>วิธีการประเมินผลผลิตล่วงหน้าด้วยสไลเดอร์:</h3>
+                <p>เลือกแปลงที่ต้องการในหน้าแรกหรือกดเข้าผ่านเมนู <strong>"ประเมินผล"</strong> แถบล่าง จากนั้นปรับแถบเลื่อน (Sliders) สามส่วนตามค่าเฉลี่ยจริงที่สุ่มวัดได้ในแปลงปลูกอ้อยของท่าน:</p>
+                
+                <ol class="step-list">
+                    <li><strong>ความหนาแน่นอ้อย (ลำต่อ 10 เมตร):</strong> ขยับแถบปรับจำลองตามจำนวนลำอ้อยที่นับได้จริงตลอดความยาวร่อง 10 เมตร</li>
+                    <li><strong>ความสูงต้นอ้อยเฉลี่ย (เซนติเมตร):</strong> ปรับขยับตามความสูงของลำต้นอ้อย (วัดจากโคนถึงระดับยอดหักใบอ้อย)</li>
+                    <li><strong>ขนาดความโตเฉลี่ยของลำอ้อย (เซนติเมตร):</strong> ปรับความกว้างอวบหนาของเส้นรอบวงลำต้นอ้อย</li>
+                </ol>
+
+                <div class="alert-callout alert-success">
+                    <h4>💡 การประเมินสุขภาพทางการเงินและกำไรล่วงหน้า:</h4>
+                    <p>เมื่อท่านขยับสไลเดอร์ ระบบจะคำนวณแปลงออกมาเป็นปริมาณน้ำหนักอ้อยเฉลี่ยต่อไร่ น้ำหนักรวม และมูลค่าเป็นบาททันที
+                    <br>🟢 <strong>หากผลผลิตเกินจุดคุ้มทุน (Break-Even):</strong> แถบสถานะทางการเงินจะโชว์ <strong>สีเขียว (กำไรสะสม)</strong> คาดการณ์จำนวนกำไรสุทธิเป็นบาทให้ท่านเห็นชัดเจน
+                    <br>🔴 <strong>หากผลผลิตต่ำกว่าจุดคุ้มทุน:</strong> แถบสถานะจะโชว์ <strong>สีแดง (ขาดทุนสะสม)</strong> เพื่อช่วยเตือนภัยให้ท่านเร่งเสริมสารอาหาร ปรับระบบน้ำ หรือบำรุงดินก่อนสายเกินแก้</p>
+                </div>
+            </section>
+
+            <!-- SECTION 8: Cost Tracker -->
+            <section id="cost">
+                <h2>💵 8. บันทึกต้นทุนสะสมรายแปลง (Plot Cost Log)</h2>
+                <p>ระบบบันทึกค่าใช้จ่ายรายแปลง เพื่อเก็บข้อมูลทางการเงินอย่างเป็นระเบียบและช่วยหาราคาจุดคุ้มทุนที่แท้จริง:</p>
+
+                <div class="screenshot-box">
+                    <img src="menu_cost.png" alt="หน้าบันทึกต้นทุนแปลง">
+                    <span class="caption">รูปภาพที่ 3: ระบบจดบันทึกและจำแนกต้นทุนการทำไร่อ้อย</span>
+                </div>
+
+                <h3>ขั้นตอนการจดบันทึกรายจ่าย:</h3>
+                <ol class="step-list">
+                    <li>เปิดแผงปุ่มลัด <strong>"➕ บันทึกด่วน"</strong> และเลือก <strong>"บันทึกต้นทุนแปลง"</strong></li>
+                    <li>เลือกแปลงอ้อยที่ต้องการระบุค่าใช้จ่าย</li>
+                    <li>เลือกหมวดหมู่รายจ่ายที่เกิดขึ้นจริง:
+                        <ul>
+                            <li><strong>🌾 ค่าพันธุ์อ้อยและเตรียมดิน:</strong> เช่น ค่าจ้างไถยกร่อง ซื้อท่อนพันธุ์</li>
+                            <li><strong>🧪 ค่าปุ๋ยและยาปราบศัตรูพืช:</strong> ค่าวัสดุปุ๋ยบำรุงต่างๆ</li>
+                            <li><strong>👷 ค่าแรงงานและคนงาน:</strong> ค่าแรงจ้างคนปลูก ตัดแต่ง หรือพ่นยา</li>
+                            <li><strong>🚜 ค่าขนส่งและบริการอื่นๆ:</strong> ค่าบรรทุก รถตัด หรือน้ำมันเครื่องจักร</li>
+                        </ul>
+                    </li>
+                    <li>ระบุจำนวนเงิน (บาท) และคำอธิบายรายละเอียดเพิ่มเติมสั้นๆ</li>
+                    <li>กดปุ่ม <strong>"💾 บันทึกรายจ่ายต้นทุน"</strong></li>
+                </ol>
+                <p>ข้อมูลทั้งหมดจะถูกนำไปรวบรวมเพื่อคำนวณหักลบกับรายได้พยากรณ์ แสดงเป็นยอดผลตอบแทนสุทธิของไร่ท่านอย่างเที่ยงตรง</p>
+            </section>
+
+            <!-- SECTION 9: Harvesting & Loss -->
+            <section id="harvest">
+                <h2>🚜 9. บันทึกตัดส่งอ้อย & เปอร์เซ็นต์ความชื้นสูญหาย (Harvesting & Transport Loss)</h2>
+                <p>ฟังก์ชันสำหรับติดตามประสิทธิภาพการส่งเข้าหีบโรงงานและสกัดรายได้ที่รั่วไหลเนื่องจากการขนส่งค้างคา:</p>
+
+                <div class="screenshot-box">
+                    <img src="menu_harvest.png" alt="หน้าเมนูบันทึกเก็บเกี่ยวอ้อย">
+                    <span class="caption">รูปภาพที่ 4: การติดตามน้ำหนักอ้อยสูญหายและความหวาน</span>
+                </div>
+
+                <h3>ขั้นตอนการบันทึกการส่งอ้อย:</h3>
+                <ol class="step-list">
+                    <li>แตะเมนูบันทึกด่วนและเลือก <strong>"บันทึกตัดอ้อย"</strong></li>
+                    <li>เลือกแปลงอ้อยที่ทำการตัดและประเภทรถขนส่ง (เช่น รถพ่วง รถบรรทุก 10 ล้อ)</li>
+                    <li>บันทึกระบุปริมาณน้ำหนักจริง 3 จุดเช็คพอยต์ เพื่อเปรียบเทียบน้ำหนักคลาดเคลื่อน:
+                        <ul>
+                            <li><strong>น้ำหนักชั่งต้นทาง (หน้าแปลง):</strong> น้ำหนักประเมินขณะขึ้นรถบรรทุกในไร่</li>
+                            <li><strong>น้ำหนักชั่ง ณ ลานพักกลางทาง:</strong> น้ำหนักเมื่อนำรถไปจอดพักรอคิวจัดส่ง</li>
+                            <li><strong>น้ำหนักโรงงานน้ำตาลชั่งจริง:</strong> น้ำหนักสุทธิปลายทางที่โรงงานน้ำตาลบันทึกจ่ายเงิน</li>
+                        </ul>
+                    </li>
+                    <li>ระบุระดับค่าความหวานอ้อยจริง <strong>(CCS)</strong> ที่โรงงานรายงานให้ทราบ</li>
+                    <li>กดบันทึกเพื่อตรวจสอบผลการวิเคราะห์</li>
+                </ol>
+
+                <div class="alert-callout alert-warning">
+                    <h4>⚠️ การวิเคราะห์เปอร์เซ็นต์น้ำหนักระเหยสูญหาย:</h4>
+                    <p>ระบบจะนำค่าน้ำหนักต้นทางเทียบกับโรงงานจริงมาวิเคราะห์:
+                    <br>1. คำนวณเป็น <strong>เปอร์เซ็นต์การระเหยของน้ำหนักอ้อย (% Weight Loss)</strong>
+                    <br>2. ประเมินและตีมูลค่า <strong>"ยอดเงินโอกาสที่หล่นหาย" (บาท)</strong> จากความชื้นที่ระเหยไปเนื่องจากจอดค้างคิวรถตัดหรือขนส่งล่าช้าเกิน 24 ชั่วโมง เพื่อให้ชาวไร่มีสถิติต่อรองปรับรูปแบบการขนส่งรอบถัดไปให้ดียิ่งขึ้น</p>
+                </div>
+            </section>
+
+            <!-- SECTION 10: Pest Scanner -->
+            <section id="pest">
+                <h2>🐛 10. เครื่องมือสแกนโรคพืชด้วย AI (Pest Scanner)</h2>
+                <p>จำแนกศัตรูพืชและรับวิธีพ่นยารักษาอย่างรวดเร็วด้วยกล้องวิเคราะห์ปัญญาประดิษฐ์:</p>
+
+                <div class="screenshot-box">
+                    <img src="menu_pest.png" alt="หน้าแอปสแกนโรคพืช">
+                    <span class="caption">รูปภาพที่ 5: หน้าจอเครื่องมือ AI สแกนโรคใบอ้อย</span>
+                </div>
+
+                <h3>ขั้นตอนการใช้ AI ตรวจโรค:</h3>
+                <ol class="step-list">
+                    <li>เข้าไปที่เมนูบันทึกด่วน แตะเลือก <strong>"รายงานโรค/ศัตรูพืช"</strong></li>
+                    <li>ถ่ายภาพใบอ้อยที่มีความผิดปกติ (หรือเลือกอัปโหลดรูปภาพใบอ้อยจากคลังภาพในมือถือ)</li>
+                    <li>ระบบ AI จะเริ่มการวิเคราะห์ และจำลองวาดเส้นกรอบทับพื้นผิวแผลโรคพืช <strong>(AI Image Masking Overlay)</strong> บนหน้าจอโดยอัตโนมัติ</li>
+                    <li>แอปพลิเคชันจะสรุปผลและรายงานชนิดโรคที่พบ (เช่น โรคใบขาว, หนอนกออ้อย, โรคเหี่ยวเน่าแดง) พร้อมคำแนะนำทางวิชาการและการรักษาเบื้องต้น</li>
+                    <li>ระบบจะบันทึกพิกัดของจุดที่ท่านถ่ายรูปนี้ และส่งไปปักหมุดบน <strong>แผนที่เตือนภัยระบาด (Outbreak Map)</strong> ของระบบหลังบ้านโรงงานทันที เพื่อให้ทีมส่งเสริมเตรียมยาปราบศัตรูพืชหรือส่งเจ้าหน้าที่เข้ามาช่วยเหลือ</li>
+                </ol>
+            </section>
+
+            <!-- SECTION 11: Support & Chatbot AI -->
+            <section id="support">
+                <h2>🤖 11. ระบบแชทกลุ่มพูดคุย & ผู้ช่วยอัจฉริยะ Gemini AI</h2>
+                <p>ช่องทางการสื่อสาร แลกเปลี่ยนความรู้ ปรึกษาปัญหา และรับข่าวสารส่งเสริมผ่านแท็บ <strong>"สนับสนุน/แชท"</strong>:</p>
+
+                <div class="screenshot-box">
+                    <img src="menu_support.png" alt="หน้าจอปรึกษาและแชทกับ AI">
+                    <span class="caption">รูปภาพที่ 6: ช่องทางปรึกษาปัญหาการเกษตรและการแชทกับ AI</span>
+                </div>
+
+                <h3>ช่องทางการใช้งานหลัก:</h3>
+                <ul>
+                    <li><strong>ระบบแชทกลุ่มแบบประสานข้อมูลออฟไลน์ (Group Chat & Sync):</strong>
+                        <p>เกษตรกรสามารถส่งข้อความปรึกษาพนักงานส่งเสริม สอบถามข่าวสาร หรือพูดคุยแลกเปลี่ยนเทคนิคการทำไร่ร่วมกันในห้องแชทส่วนกลาง ข้อมูลข้อความจะถูกบันทึกลงระบบคลาวด์ (Google Sheets) ทันทีที่มีอินเทอร์เน็ต และเมื่อไม่มีอินเทอร์เน็ต ระบบจะจัดคิวข้อความออฟไลน์และซิงก์ส่งให้อัตโนมัติเมื่อตรวจพบเน็ตในภายหลัง</p>
+                    </li>
+                    <li><strong>ระบบการแจ้งเตือนข้อความใหม่แบบทันท่วงที (Chat Notification System):</strong>
+                        <p>เมื่อมีผู้ใช้อื่นหรือเจ้าหน้าที่ส่งข้อความใหม่เข้ามาในขณะที่คุณเปิดหน้าต่างอื่นอยู่ (เช่น แผนที่ GIS, ลงทะเบียนแปลง, บันทึกต้นทุน) ระบบจะมีกลไกแจ้งเตือนดังนี้:</p>
+                        <ul>
+                            <li>🔔 <strong>เสียงแจ้งเตือน:</strong> ระบบจะเล่นเสียงเตือนเบาๆ แบบสังเคราะห์ขึ้น (Audio Beep)</li>
+                            <li>🔴 <strong>ป้ายแจ้งเตือนสีแดง:</strong> แสดงจุดสีแดงขนาดเล็กที่ปุ่มเมนูแชท (badge-chat) บนแถบนำทางหลัก</li>
+                            <li>💬 <strong>แถบข้อความเตือนด่วน (Toast Alert):</strong> แสดงป๊อปอัปพรีวิวข้อความใหม่ขนาดสั้นที่มุมล่างหน้าจอชั่วขณะ</li>
+                        </ul>
+                    </li>
+                    <li><strong>แชทสอบถามผู้ช่วยอัจฉริยะ (Gemini AI Assistant):</strong> พิมพ์ข้อความภาษาไทยเพื่อซักถามข้อมูลทางวิชาการเกษตร เช่น <code>"ดินร่วนปนทรายควรปลูกอ้อยพันธุ์ไหนดี?"</code> หรือ <code>"อ้อยอายุ 3 เดือนใบเริ่มมีจุดสีน้ำตาลทำอย่างไร?"</code> หากมีการกรอก API Key จริงในหน้าตั้งค่า ระบบจะประมวลผลผ่านปัญญาประดิษฐ์และส่งคำแนะนำกลับมาช่วยเหลือท่านแบบเรียลไทม์ทันที</li>
+                    <li><strong>การส่งข้อมูลความช่วยเหลือแก่โรงงาน:</strong> หากท่านต้องการความช่วยเหลือแบบเฉพาะเจาะจง ท่านสามารถกรอกแบบฟอร์มส่งขอคำปรึกษาพร้อมรายละเอียดเรื่องส่งเสริม เพื่อให้ระบบออฟไลน์บันทึกข้อมูลและส่งเรื่องขึ้นฐานข้อมูลกลาง</li>
+                </ul>
+            </section>
+
+            <!-- SECTION 12: Analytics & Leaderboard -->
+            <section id="analytics">
+                <h2>📊 12. แดชบอร์ดวิเคราะห์สถิติ & ตารางอันดับ (Analytics & Leaderboard)</h2>
+                <p>เข้าดูผ่านเมนูบันทึกด่วน เลือกปุ่ม <strong>"วิเคราะห์สถิติไร่"</strong>:</p>
+
+                <div class="screenshot-box">
+                    <img src="menu_analytics.png" alt="หน้าแดชบอร์ดแสดงกราฟและอันดับสถิติ">
+                    <span class="caption">รูปภาพที่ 7: รายงานการวิเคราะห์สถิติและเปรียบเทียบสัดส่วนต้นทุน</span>
+                </div>
+
+                <h3>สถิติวิเคราะห์เชิงลึกที่ท่านจะได้รับ:</h3>
+                <ul>
+                    <li><strong>สรุปสถิติมูลค่าสุทธิ (Net ROI Dashboard):</strong> คำนวณหักลบระหว่างราคาประเมินอ้อยทั้งหมดหักด้วยค่าต้นทุนสะสมที่บันทึกจริงรายแปลง แสดงผลลัพธ์เป็นเปอร์เซ็นต์อัตราการคืนทุนของไร่</li>
+                    <li><strong>กราฟเปรียบเทียบสัดส่วนต้นทุน (Cost Share Pie Chart):</strong> กราฟวงกลมแยกหมวดหมู่การลงทุนของท่านเป็น เปอร์เซ็นต์ค่าพันธุ์, ค่าปุ๋ยบำรุง, ค่าแรงงาน และค่าขนส่ง เพื่อชี้จุดอ่อนที่ทำให้เกิดการลงทุนมากเกินสมควร</li>
+                    <li><strong>ประวัติเปรียบเทียบฤดูกาล (Season Comparison):</strong> ตารางจำลองเปรียบเทียบผลผลิตรวมและ CCS ระหว่างปีการผลิตเก่าและปีปัจจุบัน เพื่อศึกษาพัฒนาการการปรับปรุงดินบำรุงไร่</li>
+                    <li><strong>ตารางอันดับชาวไร่ดีเด่นในโซน (Leaderboard):</strong> จัดอันดับชาวไร่ในพื้นที่โซนส่งเสริมเดียวกันที่ได้ตันต่อไร่เฉลี่ยสูงสุด และมีเกรดความหวาน CCS สูงสุด โดยระบบจะแสดงรหัสโคว้ตาแบบไม่เผยชื่อจริง <strong>(Anonymous Leaderboard)</strong> เพื่อให้ชาวไร่เกิดการกระตุ้นและแข่งขันปรับผลผลิตให้ดียิ่งขึ้นตามกลไก</li>
+                </ul>
+            </section>
+
+            <!-- SECTION 13: Staff Mode -->
+            <section id="staff">
+                <h2>👨‍💼 13. โหมดเจ้าหน้าที่ส่งเสริมการปลูก (Promoter Mode)</h2>
+                <p>โหมดเฉพาะสำหรับการลงพื้นที่ของพนักงานฝ่ายส่งเสริมของโรงงานน้ำตาล เพื่อใช้ตรวจสอบแปลงแนวเขตโควตา:</p>
+                
+                <h3>ขั้นตอนการปฏิบัติการสำหรับพนักงานส่งเสริม:</h3>
+                <ol class="step-list">
+                    <li><strong>สลับเข้าโหมดเจ้าหน้าที่:</strong> ในหน้าเข้าสู่ระบบ ให้เลือกบทบาท <strong>"เจ้าหน้าที่ส่งเสริม"</strong> และกรอก Staff ID 4 หลัก พร้อมรับ OTP 6 หลักเพื่อผ่านแดชบอร์ดเจ้าหน้าที่</li>
+                    <li><strong>ตรวจสอบและจัดยืนยันกรอบแปลง (Polygon Verification):</strong> 
+                        <ul>
+                            <li>หน้าแดชบอร์ดจะโชว์รายการแปลงของชาวไร่ที่ส่งคำขอขึ้นทะเบียนใหม่</li>
+                            <li>พนักงานกดปุ่มนำทางแปลงอัจฉริยะ แผนที่จะดึงข้อมูลพิกัดชาวไร่เทียบกับพิกัดปัจจุบันของเจ้าหน้าที่ (Haversine Distance) หากอยู่ไกลเกินกำหนด แผนที่จะเปลี่ยนเป็นหน้าจอเข็มทิศเรดาร์กึ่งกลางจอ <strong>(Canvas Radar Navigation)</strong> เพื่อนำทางพนักงานเดินเหยียบถึงพื้นที่ดินจริง</li>
+                            <li>เมื่อยืนยันว่าแปลงอ้อยถูกต้องจริง ให้ทำการวาดขอบเขตแบบกรอบสี่เหลี่ยม (Polygon Boundary) พร้อมทั้งกรอก <strong>"รหัสแปลงโควตาโรงงาน (Factory Plot Code)"</strong> เช่น <code>45-0213</code> และยืนยันยืนยันข้อมูลเพื่อผูกเข้าบัญชีเกษตรกร</li>
+                        </ul>
+                    </li>
+                    <li><strong>เครื่องมือประกาศปุ๋ยส่งเสริมชาวไร่ (Staff Announcement Helper Panel):</strong>
+                        <p>พนักงานส่งเสริมสามารถใช้ **"แผงประกาศและราคาส่งเสริม"** ในหน้าแชทของระบบส่งเสริมเพื่อประกาศให้ชาวไร่ทุกคนในเขตมองเห็นการแจ้งเตือนทันที:</p>
+                        <ul>
+                            <li>พนักงานกรอกระบุ **สูตรปุ๋ย** (เช่น ยูเรีย 46-0-0, แดป 18-46-0, ม็อบ 0-0-60, 16-8-8 ฯลฯ) และ **ราคาจำหน่ายแนะนำ** (บาทต่อกระสอบ) จากนั้นกดปุ่ม **"ประกาศข่าวสาร"**</li>
+                            <li>ระบบจะส่งข้อความประกาศนี้ไปยังช่องแชท และแปลงข้อความให้ปักหมุดวิ่งแสดงผลใน **แถบประกาศทองคำ** บนหน้าแรกของเกษตรกรทุกคนในระบบโดยอัตโนมัติ เพื่อกระจายข่าวราคากลางปุ๋ยเคมีอัปเดตสัปดาห์นี้ได้อย่างทั่วถึง</li>
+                        </ul>
+                    </li>
+                    <li><strong>รายงานสรุปข้อมูลโซนส่งเสริม:</strong> 
+                        <ul>
+                            <li>หน้า Analytics เจ้าหน้าที่จะสรุปจำนวนตันอ้อยทั้งหมดที่ลงทะเบียนในโซนตนเองแยกเป็นประเภทอ้อยส่งสดและอ้อยไฟไหม้</li>
+                            <li>ปุ่มดาวน์โหลดรายงาน: สามารถกดปุ่ม <strong>"ส่งออกข้อมูลสถิติของเจ้าหน้าที่ (Export Staff Zone CSV)"</strong> นำข้อมูลแปลงดิบทั้งหมดไปคำนวณสรุปประเมินยอดนำส่งใน Excel ต่อไปได้ทันที</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <!-- SECTION 14: Settings & Backup -->
+            <section id="settings">
+                <h2>⚙️ 14. หน้าจอตั้งค่าระบบและการกู้คืนข้อมูลแบบเข้ารหัส</h2>
+                <p>หน้าตั้งค่าคือส่วนบริหารการทำงานของแอปพลิเคชันให้เหมาะสมกับตัวผู้ใช้:</p>
+
+                <div class="alert-callout alert-warning">
+                    <h4>🔒 สิทธิ์ในการเข้าถึงและตั้งค่าเฉพาะเจ้าหน้าที่ (Staff-Only Settings View):</h4>
+                    <p>ระบบแยกสิทธิ์การแก้ไขข้อมูลโครงสร้างพื้นฐานเพื่อป้องกันความเสียหายของราคาปุ๋ยกลางและลิงก์เชื่อมต่อระบบข้อมูลหลัก:
+                    <br>• <strong>เกษตรกรทั่วไป:</strong> สามารถตั้งค่าเสียงนำทาง เปิดโหมดตัวอักษรใหญ่ และสำรองข้อมูลกู้คืนบัญชีตนเองได้ตามปกติ
+                    <br>• <strong>เจ้าหน้าที่ส่งเสริม:</strong> จะมองเห็นตัวเลือกการตั้งค่าเพิ่มขึ้นอีก 2 รายการเมื่อกดเข้าหน้าตั้งค่า ได้แก่ **"การปรับราคาปุ๋ยอ้างอิง NPK"** และ **"ลิงก์เชื่อมต่อ Google Sheets ส่วนกลาง"** สำหรับป้อนพิกัดแอปสคริปต์กลางของโครงการ</p>
+                </div>
+
+                <h3>🔊 ระบบเสียงนำทางอัจฉริยะ (Voice Guide)</h3>
+                <p>แอปพลิเคชันมีบริการบรรยายหน้าจอแนะนำขั้นตอนทำงานผ่านระบบแปลงข้อความเป็นเสียง (Text-to-Speech) โดยสามารถเลือกได้ 3 รูปแบบในเมนูตัวเลือก:</p>
+                <ul>
+                    <li>🔇 <strong>ปิดเสียงบรรยาย (Mute)</strong></li>
+                    <li>🗣️ <strong>ภาษาไทยกลาง (Central Thai)</strong></li>
+                    <li>🗣️ <strong>ภาษาอีสาน (Isan Dialect)</strong> - สำหรับเกษตรกรชาวอีสานเพื่อความเป็นกันเองและเข้าใจง่ายที่สุด</li>
+                </ul>
+                <p>นอกจากนี้ยังมีระบบตรวจวัดเสียง <strong>(TTS Diagnostics)</strong> สำหรับตรวจเช็คเสียงเบราว์เซอร์ของระบบ พร้อมป้ายแจ้งเตือนพิเศษหากเปิดใช้บนเว็บเบราว์เซอร์ในแอป เช่น LINE หรือ Facebook ซึ่งมักบล็อกระบบเล่นเสียงโดยเริ่มต้น</p>
+
+                <h3>👓 โหมดขยายตัวหนังสือใหญ่ (Accessibility / Elderly Mode)</h3>
+                <p>เปิดสวิตช์ <strong>"โหมดตัวหนังสือใหญ่ (สำหรับผู้สูงอายุ)"</strong> ในหน้าตั้งค่า ระบบจะปรับเพิ่มขนาดฟอนต์ไอคอน รูปแบบเมนู ปุ่มบันทึกข้อมูลทุกหน้าจอให้กว้างและมีขนาดใหญ่ขึ้น 30% ทันที ช่วยให้คุณลุงคุณป้าชาวไร่ใช้งานและกดเมนูบันทึกต่างๆ ได้ง่ายโดยไม่ต้องเพ่งสายตา</p>
+
+                <h3>🤖 การเชื่อมโยง Gemini AI</h3>
+                <p>กรอก <strong>Gemini API Key</strong> ของท่านในช่อง เพื่อยกระดับความฉลาดให้ระบบตอบรับถามแชทบอทให้ตอบคำตอบตรงตามวิชาการเกษตรแม่นยำที่สุด หากเว้นว่างไว้ระบบจะสลับใช้บอทจำลองแทน</p>
+
+                <h3>💾 การกู้คืนข้อมูลแบบเข้ารหัสภัย (Encrypted Backup & Restore)</h3>
+                <p>แอปพลิเคชันนี้เน้นความโปร่งใส ปลอดภัยของข้อมูล และป้องกันข้อมูลแปลงสูญหายเมื่อล้างเครื่องหรือย้ายโทรศัพท์มือถือใหม่:</p>
+                <div class="alert-callout alert-warning">
+                    <h4>🔒 มาตรฐานความปลอดภัยไฟล์สำรองข้อมูล:</h4>
+                    <p>ระบบใช้เทคโนโลยี <strong>Web Crypto API</strong> นำรหัสผ่านที่ท่านกำหนดในเครื่องมาสกัดกุญแจความปลอดภัย <strong>(PBKDF2 SHA-256)</strong> ร่วมกับระบบการเข้ารหัสข้อมูลไร่อันแข็งแกร่ง <strong>(AES-GCM 256-bit)</strong> เพื่อบันทึกเป็นไฟล์นามสกุลเฉพาะ <code>.sfk</code> ปราศจากการปลอมแปลงข้อมูล</p>
+                </div>
+                <ul>
+                    <li><strong>วิธีการสำรองข้อมูล (Backup):</strong> กดปุ่ม <strong>"สำรองข้อมูล (Backup)"</strong> ระบบจะให้กำหนดรหัสผ่านในการเข้ารหัส จากนั้นแอปจะดาวน์โหลดไฟล์ชื่อ <code>smart_farmer_backup_YYYYMMDD_HHMMSS.sfk</code> เก็บลงเครื่องมือถือ</li>
+                    <li><strong>วิธีการกู้คืนข้อมูล (Restore):</strong> ย้ายไฟล์ <code>.sfk</code> ไปยังเครื่องใหม่ เปิดแอปแล้วกดปุ่ม <strong>"นำเข้าข้อมูล (Restore)"</strong> เลือกไฟล์ดังกล่าวและป้อนรหัสผ่านที่ตั้งไว้ ระบบจะถอดรหัสและดึงข้อมูลทะเบียนแปลงอ้อย, รายรับรายจ่าย, พิกัด GPS และคิวรถตัดทั้งหมดกลับคืนสู่หน้าจอดังเดิมทันทีในเสี้ยววินาที</li>
+                </ul>
+            </section>
+
+        </main>
     </div>
+
+    <script>
+        // If loaded inside an iframe, hide header/aside/footer and adjust container
+        if (window.self !== window.top) {
+            const header = document.querySelector('header');
+            if (header) header.style.display = 'none';
+            const aside = document.querySelector('aside');
+            if (aside) aside.style.display = 'none';
+            const footer = document.querySelector('footer');
+            if (footer) footer.style.display = 'none';
+            
+            const container = document.querySelector('.container');
+            if (container) {
+                container.style.gridTemplateColumns = '1fr';
+                container.style.padding = '10px';
+                container.style.gap = '0';
+            }
+            
+            const main = document.querySelector('main');
+            if (main) {
+                main.style.padding = '15px';
+                main.style.boxShadow = 'none';
+                main.style.border = 'none';
+            }
+        }
+    </script>
 
 </body>
 </html>

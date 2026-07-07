@@ -1,5 +1,6 @@
 // Smart Farmer Book - Voice Guide Module (Phase 5)
 
+
 const FARMER_VOICES = {
     th: {
         'onboarding-0': "หน้าขึ้นทะเบียนแปลงอ้อย เพียงกรอกข้อมูลโควตา ขนาดแปลง และพิกัด ก็แจ้งปลูกเสร็จสิ้นในสองขั้นตอนครับ",
@@ -288,3 +289,33 @@ function checkWebViewSpeechWarning() {
         if (settingsWarning) settingsWarning.classList.add('d-none');
     }
 }
+
+// Phase 4: Dynamic TTS for AI Consultant
+window.speakDynamicText = function(text) {
+    if (!window.speechSynthesis) return;
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!isIOS) {
+        window.speechSynthesis.cancel();
+    }
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'th-TH';
+    utterance.rate = 0.85; // Slightly faster for AI
+    utterance.pitch = 1.05; // Slightly higher pitch for friendly AI tone
+    utterance.volume = 1.0;
+    
+    const voices = window.speechSynthesis.getVoices();
+    const thaiVoices = voices.filter(v => v.lang.includes('th-TH') || v.lang.includes('th'));
+    
+    // Try to find a premium or female voice
+    let selectedVoice = thaiVoices.find(v => v.name.includes('Kanya')) ||
+                        thaiVoices.find(v => v.name.toLowerCase().includes('premium')) ||
+                        thaiVoices[0];
+                        
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+    }
+    
+    window.speechSynthesis.speak(utterance);
+};

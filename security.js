@@ -199,6 +199,8 @@ async function triggerEncryptedBackup() {
     try {
         const localQueue = await getDataQueue();
         const localAuditLogs = await SmartFarmerDB.getAll('audit_log');
+        const localPests = await SmartFarmerDB.getAll('pest_reports');
+        const localSendLogs = await SmartFarmerDB.getAll('send_log');
         
         // Collect all local state
         const backupPayload = {
@@ -207,6 +209,8 @@ async function triggerEncryptedBackup() {
             plots: plots,
             queue: localQueue,
             auditLog: localAuditLogs,
+            pestReports: localPests,
+            sendLog: localSendLogs,
             settings: {
                 sheetUrl: localStorage.getItem('smart_farmer_sheet_url') || '',
                 quota: localStorage.getItem('smart_farmer_quota') || '',
@@ -294,6 +298,23 @@ async function restoreFromBackupData(data, mode) {
             }
         }
         
+        // Save pest reports
+        if (Array.isArray(data.pestReports)) {
+            await SmartFarmerDB.clear('pest_reports');
+            for (const p of data.pestReports) {
+                await SmartFarmerDB.put('pest_reports', p);
+            }
+            pestReports = data.pestReports;
+        }
+        
+        // Save send log
+        if (Array.isArray(data.sendLog)) {
+            await SmartFarmerDB.clear('send_log');
+            for (const s of data.sendLog) {
+                await SmartFarmerDB.put('send_log', s);
+            }
+        }
+        
         if (data.settings) {
             if (data.settings.sheetUrl) localStorage.setItem('smart_farmer_sheet_url', data.settings.sheetUrl);
             if (data.settings.quota) localStorage.setItem('smart_farmer_quota', data.settings.quota);
@@ -339,6 +360,32 @@ async function restoreFromBackupData(data, mode) {
             for (const importL of data.auditLog) {
                 if (!localLogs.some(l => l.id === importL.id)) {
                     await SmartFarmerDB.put('audit_log', importL);
+                }
+            }
+        }
+        
+        // Merge pest reports
+        if (Array.isArray(data.pestReports) && data.pestReports.length > 0) {
+            const localPests = await SmartFarmerDB.getAll('pest_reports');
+            let mergedPests = [...localPests];
+            for (const importP of data.pestReports) {
+                const idx = mergedPests.findIndex(p => p.id === importP.id);
+                if (idx >= 0) {
+                    mergedPests[idx] = importP;
+                } else {
+                    mergedPests.push(importP);
+                }
+                await SmartFarmerDB.put('pest_reports', importP);
+            }
+            pestReports = mergedPests;
+        }
+        
+        // Merge send logs
+        if (Array.isArray(data.sendLog) && data.sendLog.length > 0) {
+            const localSendLogs = await SmartFarmerDB.getAll('send_log');
+            for (const importS of data.sendLog) {
+                if (!localSendLogs.some(s => s.id === importS.id)) {
+                    await SmartFarmerDB.put('send_log', importS);
                 }
             }
         }
