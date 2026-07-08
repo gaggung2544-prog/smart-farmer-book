@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smart-farmer-cache-v75';
+const CACHE_NAME = 'smart-farmer-cache-v76';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -179,6 +179,13 @@ self.addEventListener('fetch', event => {
                     });
                 }
                 return networkResponse;
+            }).catch(() => {
+                // ออฟไลน์ + ไม่มีใน cache: ถ้าเป็นการเปิดหน้า (navigate) เสิร์ฟ app shell ที่ precache ไว้
+                // -> แอปเปิด/สลับหน้าได้เสมอแม้ไม่มีเน็ต (เดิม fetch ล้มเหลวแบบ hard-fail)
+                if (event.request.mode === 'navigate') {
+                    return caches.match('./index.html').then(r => r || caches.match('./'));
+                }
+                return Response.error();
             });
         })
     );

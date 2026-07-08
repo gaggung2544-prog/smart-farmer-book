@@ -15992,8 +15992,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (newWorker) {
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    console.log('New content available; reloading page...');
-                                    window.location.reload();
+                                    // ไม่รีโหลดเอง (กันขัดจังหวะงานผู้ใช้) — โชว์แถบให้กดรีเฟรชเอง
+                                    if (!document.getElementById('sw-update-banner')) {
+                                        const bar = document.createElement('div');
+                                        bar.id = 'sw-update-banner';
+                                        bar.style.cssText = 'position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:20000; background:#0F2C59; color:#fff; border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; box-shadow:0 6px 20px rgba(0,0,0,0.25); font-size:13px;';
+                                        bar.innerHTML = '<span>🎉 มีเวอร์ชันใหม่พร้อมใช้งาน</span>';
+                                        const btn = document.createElement('button');
+                                        btn.type = 'button';
+                                        btn.textContent = 'รีเฟรช';
+                                        btn.style.cssText = 'background:#fff; color:#0F2C59; border:none; border-radius:20px; font-weight:800; font-size:12px; padding:7px 16px; cursor:pointer; flex-shrink:0;';
+                                        btn.addEventListener('click', () => window.location.reload());
+                                        bar.appendChild(btn);
+                                        document.body.appendChild(bar);
+                                    }
                                 }
                             });
                         }
@@ -16197,6 +16209,7 @@ function renderLastSyncIndicator() {
 function closeTopmostModal() {
     // เรียงตามลำดับความสำคัญ (บนสุดก่อน); ไม่รวม login-overlay เพราะเป็นด่านเข้าระบบ
     const modalIds = [
+        'inapp-frame-modal',
         'profile-camera-modal',
         'staff-map-modal',
         'pdpa-modal',
@@ -16215,10 +16228,33 @@ function closeTopmostModal() {
             if (id === 'staff-map-modal' && typeof leafletMapInstance !== 'undefined' && leafletMapInstance) {
                 try { leafletMapInstance.remove(); leafletMapInstance = null; } catch (e) {}
             }
+            if (id === 'inapp-frame-modal') {
+                const fr = document.getElementById('inapp-frame');
+                if (fr) fr.src = 'about:blank'; // หยุดวิดีโอ/โหลด
+            }
             return true;
         }
     }
     return false;
+}
+
+// WS4: เปิดหน้าเว็บ/วิดีโอ "ในแอป" (iframe) แทนการเด้งออกไปเบราว์เซอร์อื่น
+function openInAppFrame(url, title) {
+    const modal = document.getElementById('inapp-frame-modal');
+    const frame = document.getElementById('inapp-frame');
+    if (!modal || !frame) { window.open(url, '_blank'); return; } // fallback
+    const titleEl = document.getElementById('inapp-frame-title');
+    if (titleEl) titleEl.textContent = title || 'Smart Farmer';
+    frame.src = url;
+    modal.classList.remove('d-none');
+    // ดัน history state เพื่อให้ปุ่ม back ปิดหน้าต่างนี้ได้ (ผ่าน popstate -> closeTopmostModal)
+    try { history.pushState({ screenId: __currentScreenId }, ''); } catch (e) {}
+}
+function closeInAppFrame() {
+    const modal = document.getElementById('inapp-frame-modal');
+    const frame = document.getElementById('inapp-frame');
+    if (frame) frame.src = 'about:blank';
+    if (modal) modal.classList.add('d-none');
 }
 
 window.addEventListener('popstate', (e) => {
@@ -16520,7 +16556,54 @@ function animateCountUpValue(elementId, targetValue, decimals = 0, suffix = '') 
 }
 
 // Render Dashboard Screen
+// WS3: การ์ดทักทายเฉพาะตัวบนหน้าแรก — ทำให้รู้สึกเป็น "แอปของฉัน" ตั้งแต่เข้าเมนูแรก
+function renderFarmerGreeting() {
+    const card = document.getElementById('dash-greeting-card');
+    if (!card) return;
+    const quota = localStorage.getItem('smart_farmer_quota');
+    const isStaff = !!localStorage.getItem('smart_farmer_staff_id');
+    if (!quota || isStaff) { card.classList.add('d-none'); return; }
+
+    let name = '', photo = '';
+    try {
+        const p = JSON.parse(localStorage.getItem('smart_farmer_profile') || '{}');
+        name = (p.fullname || '').trim();
+        photo = p.photo || '';
+    } catch (e) {}
+    const displayName = name || ('โควตา ' + quota);
+
+    const h = new Date().getHours();
+    const greet = h < 12 ? 'สวัสดีตอนเช้า' : (h < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น');
+
+    const plotCount = (typeof getUserPlots === 'function') ? getUserPlots().length : 0;
+    let unread = 0;
+    try { unread = (plots || []).filter(pl => pl.hasUnreadStaffReply).length; } catch (e) {}
+
+    const esc = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+    const avatar = photo
+        ? `<img src="${esc(photo)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.7);flex-shrink:0;">`
+        : `<div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">👨‍🌾</div>`;
+
+    const bits = [`🌾 ${plotCount} แปลงของฉัน`];
+    if (unread > 0) bits.push(`🔔 ${unread} คำตอบใหม่จากเจ้าหน้าที่`);
+
+    card.classList.remove('d-none');
+    card.innerHTML = `
+        <div style="display:flex; align-items:center; gap:12px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border-radius:16px; padding:14px; box-shadow:0 6px 16px rgba(5,150,105,0.25); margin-bottom:16px;">
+            ${avatar}
+            <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:800; line-height:1.2;">${greet} คุณ${esc(displayName)}</div>
+                <div style="font-size:11.5px; opacity:0.95; margin-top:3px; line-height:1.4;">${bits.join('  •  ')}</div>
+            </div>
+            <button type="button" class="btn-voice-speak" onclick="playFarmerVoice('screen-dashboard')" title="ฟังเสียงแนะนำ" style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:34px; height:34px; border-radius:50%; font-size:16px; cursor:pointer; flex-shrink:0;">🔊</button>
+        </div>
+    `;
+}
+
 function renderDashboard() {
+    // การ์ดทักทายเฉพาะตัว (WS3)
+    renderFarmerGreeting();
+
     // อัปเดตข้อความ "อัปเดตล่าสุดเมื่อ..." (ครอบคลุมทุกเส้นทางที่เรนเดอร์ dashboard)
     renderLastSyncIndicator();
 
@@ -18893,7 +18976,7 @@ function setupEventListeners() {
             const isStaff = localStorage.getItem('smart_farmer_staff_id') ? true : false;
             let quota = localStorage.getItem('smart_farmer_quota') || '';
             let role = isStaff ? 'staff' : 'farmer';
-            window.location.href = `survey.html?quota=${encodeURIComponent(quota)}&role=${encodeURIComponent(role)}`;
+            openInAppFrame(`survey.html?quota=${encodeURIComponent(quota)}&role=${encodeURIComponent(role)}`, 'แบบสอบถาม');
         });
     }
     
@@ -19337,7 +19420,7 @@ function setupEventListeners() {
             const isStaff = localStorage.getItem('smart_farmer_staff_id') ? true : false;
             let quota = localStorage.getItem('smart_farmer_quota') || '';
             let role = isStaff ? 'staff' : 'farmer';
-            window.location.href = `survey.html?quota=${encodeURIComponent(quota)}&role=${encodeURIComponent(role)}`;
+            openInAppFrame(`survey.html?quota=${encodeURIComponent(quota)}&role=${encodeURIComponent(role)}`, 'แบบสอบถาม');
         });
     }
     
@@ -21855,6 +21938,19 @@ async function updateNavBadges() {
             harvestBadge.classList.add('d-none');
         }
     }
+
+    // WS4: badge บนไอคอนแอปที่หน้าโฮม (ให้รู้สึกเนทีฟ เตือนแม้ปิดแอป)
+    try {
+        if (navigator.setAppBadge) {
+            const sId = localStorage.getItem('smart_farmer_staff_id');
+            const isStaffB = sId && /^\d{4,5}$/.test(sId);
+            const badgeCount = isStaffB
+                ? plots.filter(p => p.wantsSupport && p.supportStatus === 'รอการตอบกลับ').length
+                : plots.filter(p => p.hasUnreadStaffReply).length;
+            if (badgeCount > 0) navigator.setAppBadge(badgeCount);
+            else if (navigator.clearAppBadge) navigator.clearAppBadge();
+        }
+    } catch (e) { /* setAppBadge ไม่รองรับทุกเบราว์เซอร์ */ }
 }
 
 async function updatePreviewFAB() {
