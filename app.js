@@ -16615,7 +16615,9 @@ function renderDashboard() {
         } else if (plot.polygonStatus === 'verified' && plot.factoryPlotCode) {
             polygonBadgeHtml = `<span style="font-size:10px; background:#d4edda; color:#155724; border-radius:12px; padding:1px 7px; margin-left:4px; border: 1px solid #c3e6cb; display: inline-block;">✅ รหัสแปลงโรงงาน: ${plot.factoryPlotCode}</span>`;
         } else if (plot.polygonStatus === 'rejected') {
-            polygonBadgeHtml = `<span style="font-size:10px; background:#f8d7da; color:#721c24; border-radius:12px; padding:1px 7px; margin-left:4px; border: 1px solid #f5c6cb; display: inline-block;">❌ ปฏิเสธแนวเขต</span>`;
+            const esc = (s) => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+            const rjReason = plot.polygonRejectReason ? (': ' + esc(plot.polygonRejectReason)) : '';
+            polygonBadgeHtml = `<span style="font-size:10px; background:#f8d7da; color:#721c24; border-radius:12px; padding:1px 7px; margin-left:4px; border: 1px solid #f5c6cb; display: inline-block;">❌ ปฏิเสธแนวเขต${rjReason}</span>`;
         }
 
         plotItem.innerHTML = `
@@ -21361,7 +21363,10 @@ function renderStaffDashboard() {
                 }
                 plot.factoryPlotCode = code;
                 plot.polygonStatus = 'verified';
+                plot.polygonRejectReason = ''; // ล้างเหตุผลปฏิเสธเดิม (ถ้ามี)
                 savePlot(plot);
+                // ผลักผลขึ้นคลาวด์ให้ถึงชาวไร่ (เดิมเรียกแค่ savePlot -> ไม่เคย sync)
+                if (typeof syncToGoogleSheet === 'function') syncToGoogleSheet('UPDATE', plot, 'REGISTRATION');
                 alert('บันทึกและออกรหัสแปลงโรงงานให้ชาวไร่เรียบร้อยแล้ว');
                 renderStaffDashboard();
             });
@@ -21371,8 +21376,13 @@ function renderStaffDashboard() {
         const btnRejectPolygon = card.querySelector('.btn-reject-polygon');
         if (btnRejectPolygon) {
             btnRejectPolygon.addEventListener('click', () => {
+                const reason = prompt('ระบุเหตุผลที่ตีกลับแนวเขต (เพื่อแจ้งชาวไร่ให้แก้ให้ถูก):', '');
+                if (reason === null) return; // ยกเลิก
                 plot.polygonStatus = 'rejected';
+                plot.polygonRejectReason = reason.trim();
                 savePlot(plot);
+                // ผลักผลขึ้นคลาวด์ให้ถึงชาวไร่ (เดิมเรียกแค่ savePlot -> ไม่เคย sync)
+                if (typeof syncToGoogleSheet === 'function') syncToGoogleSheet('UPDATE', plot, 'REGISTRATION');
                 alert('ตีกลับแนวเขตแปลงให้ชาวไร่วาดใหม่เรียบร้อยแล้ว');
                 renderStaffDashboard();
             });

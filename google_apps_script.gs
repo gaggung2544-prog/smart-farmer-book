@@ -818,7 +818,7 @@ function processData(data, e) {
         "ลิงก์รูปถ่ายแจ้งปลูก", "กิจกรรมที่ทำสำเร็จแล้ว", "สถานะอนุมัติ", "หมายเหตุพนักงาน", "รหัสพนักงานผู้ตอบ", "อัปเดตล่าสุด",
         "สถานะแผนที่ (Polygon)", "รหัสแปลงโรงงาน", "ข้อมูลขอบเขตแปลง (JSON)",
         "เวลาบันทึกจริง (Offline)", "แก้ไขออฟไลน์", "วันเวลาเข้าตรวจแปลง",
-        "คำขอคิวรถตัด (JSON)", "สถานะคิวรถตัด"
+        "คำขอคิวรถตัด (JSON)", "สถานะคิวรถตัด", "เหตุผลปฏิเสธแนวเขต"
       ];
 
       if (action === "DELETE") {
@@ -871,7 +871,8 @@ function processData(data, e) {
         plot.isOffline ? "ใช่" : "ไม่ใช่",
         plot.staffVisitDate || "-",
         plot.harvesterRequest ? JSON.stringify(plot.harvesterRequest) : "",
-        plot.harvesterRequest ? (plot.harvesterRequest.status || "") : ""
+        plot.harvesterRequest ? (plot.harvesterRequest.status || "") : "",
+        plot.polygonRejectReason || ""
       ];
 
     } else if (type === "SUPPORT") {
@@ -1114,6 +1115,7 @@ function processData(data, e) {
           rowValues[21] = (existingRow[21] !== "" && existingRow[21] !== undefined) ? existingRow[21] : rowValues[21]; // factoryPlotCode
           // สถานะคิวรถตัด (idx 27) เป็นของเจ้าหน้าที่ -> ชาวไร่อัปเดตไม่ทับ (แต่คอลัมน์คำขอ JSON idx 26 ชาวไร่แก้ได้)
           rowValues[27] = (existingRow[27] !== "" && existingRow[27] !== undefined) ? existingRow[27] : rowValues[27]; // harvesterStatus
+          rowValues[28] = (existingRow[28] !== "" && existingRow[28] !== undefined) ? existingRow[28] : rowValues[28]; // polygonRejectReason (staff)
         }
 
         sheet.getRange(rowIndex, 1, 1, rowValues.length).setValues([rowValues]);

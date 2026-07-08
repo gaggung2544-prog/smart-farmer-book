@@ -993,7 +993,8 @@ function mapSheetPlotToLocalPlot(sheetPlot) {
         "ข้อมูลขอบเขตแปลง (JSON)": "polygon",
         "วันเวลาเข้าตรวจแปลง": "staffVisitDate",
         "คำขอคิวรถตัด (JSON)": "harvesterRequest",
-        "สถานะคิวรถตัด": "harvesterStatus"
+        "สถานะคิวรถตัด": "harvesterStatus",
+        "เหตุผลปฏิเสธแนวเขต": "polygonRejectReason"
     };
 
     const localPlot = {};
