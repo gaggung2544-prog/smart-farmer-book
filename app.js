@@ -15058,6 +15058,9 @@ function savePlot(plot) {
         console.warn("savePlot: ไม่มี plot หรือไม่มี id — ข้าม");
         return;
     }
+    // ประทับเวลาแก้ไขทุกครั้ง — กันบั๊ก "แปลงหาย": ถ้าแปลงไม่มี updatedAt เลย isDeltaSync จะ false
+    // แล้วเข้า full-sync delete โดยไม่ตั้งใจ + ทำให้ conflict resolution ยึดงานที่เพิ่งแก้ในเครื่อง
+    plot.updatedAt = new Date().toLocaleString('th-TH');
     const tx = SmartFarmerDB.db.transaction('plots', 'readwrite');
     tx.onabort = (e) => {
         console.error('savePlot transaction aborted — ข้อมูลแปลงยังไม่ถูกบันทึก', tx.error || (e && e.target && e.target.error));

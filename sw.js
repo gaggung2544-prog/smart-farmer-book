@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smart-farmer-cache-v71';
+const CACHE_NAME = 'smart-farmer-cache-v72';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

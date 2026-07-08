@@ -932,11 +932,23 @@ async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = []
     if (!isDeltaSync && cloudPlots.length === 0) {
         console.warn('[Sync Delete] ข้ามการลบแบบ full-sync เพราะ cloud ส่งแปลงมา 0 รายการ (กันข้อมูลหายจาก response ที่ผิดปกติ)');
     } else if (!isDeltaSync) {
-        const cloudPlotIds = new Set(cloudPlots.map(p => p.id || p["Plot ID"] || p["รหัสแปลง"]));
-        for (const localPlot of localPlots) {
-            if (!cloudPlotIds.has(localPlot.id) && !unsyncedPlotIds.has(localPlot.id)) {
-                console.log(`[Sync Delete] Deleting local plot not on server: ${localPlot.id}`);
-                await SmartFarmerDB.delete('plots', localPlot.id);
+        // FIX (บั๊กแปลงหาย): เดิม key ผิด — cloud plot ใช้ key เต็ม "รหัสแปลง (Plot ID)" ไม่ใช่ "รหัสแปลง"/"Plot ID"
+        // -> cloudPlotIds กลายเป็น {undefined} -> ลบแปลง local ทิ้งหมด. ใช้ mapper คืน id ที่ถูกต้อง
+        const cloudPlotIds = new Set(
+            cloudPlots.map(p => p.id || p["รหัสแปลง (Plot ID)"] || p["Plot ID"] || p["รหัสแปลง"] || (mapSheetPlotToLocalPlot(p).id))
+                      .filter(Boolean)
+        );
+        // SAFETY: ถ้าดึง id จาก cloud ไม่ได้เลย (cloudPlotIds ว่าง ทั้งที่ cloud มีแปลง) แปลว่า key เพี้ยน -> งดลบ
+        if (cloudPlotIds.size === 0) {
+            console.warn('[Sync Delete] งดลบ full-sync: อ่าน id ของแปลงจาก cloud ไม่ได้ (กันลบผิด)');
+        } else {
+            for (const localPlot of localPlots) {
+                // ไม่ลบแปลงที่ยังไม่เคย round-trip (ไม่มี updatedAt = เพิ่งสร้าง/ตอบกลับ ยังไม่ได้ pull กลับ)
+                if (!localPlot.updatedAt) continue;
+                if (!cloudPlotIds.has(localPlot.id) && !unsyncedPlotIds.has(localPlot.id)) {
+                    console.log(`[Sync Delete] Deleting local plot not on server: ${localPlot.id}`);
+                    await SmartFarmerDB.delete('plots', localPlot.id);
+                }
             }
         }
     }
