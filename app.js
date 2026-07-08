@@ -17447,8 +17447,9 @@ function updateSupportCheckboxes() {
             </div>
             ${timelineHtml}
             ${plot.staffVisitDate ? `
-            <div style="margin-top: 10px; padding: 10px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-size: 11.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-sizing: border-box;">
-                <span>📅 <strong>นัดวันเวลาเข้าแปลง:</strong> ${formatDateTimeThai(plot.staffVisitDate)} น.</span>
+            <div style="margin-top: 10px; padding: 10px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-size: 11.5px; font-weight: 600; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; gap: 8px;"><span>📅 <strong>นัดวันเวลาเข้าแปลง:</strong> ${formatDateTimeThai(plot.staffVisitDate)} น.</span></div>
+                ${!plot.visitConfirmed ? `<button type="button" onclick="openVisitConfirm('${plot.id}')" style="margin-top:8px; width:100%; background:#0369a1; color:#fff; border:none; border-radius:16px; padding:9px 14px; font-size:12px; font-weight:700; cursor:pointer;">📸 ยืนยันว่าเจ้าหน้าที่มาแล้ว (ถ่ายรูป/ใส่หมายเหตุ)</button>` : ''}
             </div>
             ` : ''}
             ${plot.visitConfirmed ? `
