@@ -189,25 +189,35 @@ function scheduleDebouncedAutoSync() {
 
 function parseDate(dateStr) {
     if (!dateStr) return 0;
-    let cleaned = String(dateStr).replace(/-/g, '/');
-    let parts = cleaned.split(/[\s,]+/);
-    if (parts.length > 0) {
-        let dateParts = parts[0].split('/');
-        if (dateParts.length === 3) {
-            let day = parseInt(dateParts[0], 10);
-            let month = parseInt(dateParts[1], 10) - 1;
-            let year = parseInt(dateParts[2], 10);
-            if (year > 2400) year -= 543;
-            
-            let timeParts = [0, 0, 0];
-            if (parts[1]) {
-                let t = parts[1].split(':');
-                timeParts[0] = parseInt(t[0], 10) || 0;
-                timeParts[1] = parseInt(t[1], 10) || 0;
-                timeParts[2] = parseInt(t[2], 10) || 0;
-            }
-            return new Date(year, month, day, timeParts[0], timeParts[1], timeParts[2]).getTime();
+    // รองรับทั้ง d/m/y (พ.ศ. ไทย) และ ISO/ปีขึ้นก่อน (เช่น "2569-07-08T10:30:00.000Z")
+    // ที่ Google Sheets แปลงเซลล์วันที่ให้เป็น Date -> serialize เป็น ISO เวลาส่งกลับ
+    // แปลง '-' และ 'T' เป็น '/' และตัดเศษมิลลิวินาที/timezone ทิ้ง
+    let cleaned = String(dateStr).trim().replace(/[T\-]/g, '/').replace(/\.\d+.*$/, '').replace(/Z$/, '');
+    let dp = cleaned.split(/[\s,]+/);
+    let dateNums = dp[0].split('/').filter(x => x !== '');
+    if (dateNums.length >= 3) {
+        let a = parseInt(dateNums[0], 10);
+        let b = parseInt(dateNums[1], 10);
+        let c = parseInt(dateNums[2], 10);
+        let day, month, year;
+        if (a > 31) {            // ปีขึ้นก่อน (ISO): a=ปี, b=เดือน, c=วัน
+            year = a; month = b - 1; day = c;
+        } else {                 // วันขึ้นก่อน (ไทย): a=วัน, b=เดือน, c=ปี
+            day = a; month = b - 1; year = c;
         }
+        if (year > 2400) year -= 543; // พ.ศ. -> ค.ศ.
+
+        let timeParts = [0, 0, 0];
+        // เวลา: อาจอยู่หลังช่องว่าง (dp[1]) หรือต่อท้ายวันที่ (dateNums[3]) กรณี ISO ไม่มีช่องว่าง
+        let timeStr = dp[1] || (dateNums.length >= 4 ? dateNums[3] : '');
+        if (timeStr) {
+            let t = timeStr.split(':');
+            timeParts[0] = parseInt(t[0], 10) || 0;
+            timeParts[1] = parseInt(t[1], 10) || 0;
+            timeParts[2] = parseInt(t[2], 10) || 0;
+        }
+        const ms = new Date(year, month, day, timeParts[0], timeParts[1], timeParts[2]).getTime();
+        if (!isNaN(ms)) return ms;
     }
     const parsed = Date.parse(dateStr);
     return isNaN(parsed) ? 0 : parsed;
