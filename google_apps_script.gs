@@ -483,7 +483,8 @@ function getChatMessages(authCtx) {
     var myGroup = getSubzoneByQuota_(authCtx.sub);
     messages = messages.filter(function (m) {
       var g = String(m.targetGroup || '').trim();
-      return g === 'global' || g === '' || g === myGroup || g === authCtx.sub;
+      // F4: ตัด g === '' ออก — targetGroup ว่าง (mislabel) ไม่ควรมองเป็น "เห็นได้ทุกคน"
+      return g === 'global' || g === myGroup || g === authCtx.sub;
     });
   }
 
@@ -756,6 +757,15 @@ function processData(data, e) {
         data.mediaData || "",
         data.targetGroup
       ];
+      // F4 security: ชาวไร่ส่งได้เฉพาะกลุ่ม global หรือสายของตัวเอง + ปักผู้ส่งตาม token (กันปลอม)
+      if (isAuthEnforced_() && authCtx && authCtx.role === 'farmer') {
+        var myGroup = getSubzoneByQuota_(authCtx.sub);
+        var tg = String(data.targetGroup || '').trim();
+        if (tg !== 'global' && tg !== myGroup) {
+          rowValues[8] = myGroup || 'global'; // บังคับกลับเข้าสายตัวเอง
+        }
+        rowValues[2] = authCtx.sub; // senderId = quota จาก token
+      }
       var sheet = ss.getSheetByName(sheetName);
       if (!sheet) {
         sheet = ss.insertSheet(sheetName);
