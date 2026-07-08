@@ -16346,6 +16346,7 @@ function switchScreen(screenId, fromHistory = false) {
         if (previewCont) previewCont.classList.add('d-none');
         const gpsBadge = document.getElementById('pest-gps-coords-badge');
         if (gpsBadge) gpsBadge.classList.add('d-none');
+        if (typeof renderFarmerPestHistory === 'function') renderFarmerPestHistory();
     } else if (screenId === 'screen-analytics') {
         if (typeof startAnalyticsAutoRefresh === 'function') startAnalyticsAutoRefresh();
     } else if (screenId === 'screen-asset-debt') {
@@ -21474,6 +21475,53 @@ function switchStaffTabSection(sectionId) {
 }
 
 // Render promoter's pest reports alert list panel
+// D5: ประวัติการแจ้งโรคของชาวไร่ + คำตอบจากเจ้าหน้าที่
+function renderFarmerPestHistory() {
+    const container = document.getElementById('farmer-pest-history');
+    if (!container) return;
+    const quota = localStorage.getItem('smart_farmer_quota');
+    if (!quota) { container.innerHTML = ''; return; }
+    const q = (typeof formatQuota5Digit === 'function') ? formatQuota5Digit(quota) : String(quota).trim();
+    const esc = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+    const mine = (pestReports || []).filter(r => {
+        const rq = (typeof formatQuota5Digit === 'function') ? formatQuota5Digit(r.quota) : String(r.quota).trim();
+        return rq === q;
+    }).sort((a, b) => String(b.id || '').localeCompare(String(a.id || '')));
+    if (mine.length === 0) {
+        container.innerHTML = `<div style="color:#aaa; font-size:12px; padding:12px; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:8px;">ยังไม่มีประวัติการแจ้งโรค</div>`;
+        return;
+    }
+    container.innerHTML = mine.map(r => `
+        <div style="background:#fff; border:1px solid var(--border-color); border-radius:8px; padding:10px; font-size:12px; text-align:left;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="color:#c53030;">${esc(r.pestDiagnoses || '-')}</strong>
+                <span style="font-size:10px; color:#a0aec0;">${esc(r.offlineCreated || '')}</span>
+            </div>
+            <div style="color:#4a5568; margin-top:2px;">ระดับ: ${esc(r.pestLevels || '-')}</div>
+            ${r.staffReplyNote
+            ? `<div style="margin-top:6px; background:#e6fffa; border:1px solid #38b2ac; border-radius:6px; padding:6px; color:#234e52;">👨‍💼 <strong>เจ้าหน้าที่ตอบ:</strong> ${esc(r.staffReplyNote)}<div style="font-size:9.5px; color:#4a5568; margin-top:2px;">${esc(r.staffReplyBy || '')} ${esc(r.staffReplyTime || '')}</div></div>`
+            : `<div style="margin-top:6px; font-size:11px; color:#a0810a;">⏳ รอเจ้าหน้าที่ตอบกลับ</div>`}
+        </div>
+    `).join('');
+}
+
+// D5: เจ้าหน้าที่ตอบกลับรายงานโรคของชาวไร่
+function replyToPestReport(reportId) {
+    const report = pestReports.find(r => r.id === reportId);
+    if (!report) { alert('ไม่พบรายงานนี้ (ต้องซิงก์ข้อมูลก่อน)'); return; }
+    const note = prompt(`คำแนะนำ/การดำเนินการถึงชาวไร่ (โรค: ${report.pestDiagnoses || '-'}):`, report.staffReplyNote || '');
+    if (note === null) return; // ยกเลิก
+    const staffId = localStorage.getItem('smart_farmer_staff_id') || '';
+    report.staffReplyNote = note.trim();
+    report.staffReplyStatus = note.trim() ? 'เจ้าหน้าที่ตอบกลับแล้ว' : '';
+    report.staffReplyBy = (typeof getStaffName === 'function') ? getStaffName(staffId) : staffId;
+    report.staffReplyTime = new Date().toLocaleString('th-TH');
+    if (typeof savePestReports === 'function') savePestReports();
+    if (typeof syncToGoogleSheet === 'function') syncToGoogleSheet('UPDATE', report, 'PEST');
+    if (typeof showToast === 'function') showToast('ส่งคำตอบถึงชาวไร่แล้ว', 'success');
+    renderStaffPestAlerts();
+}
+
 function renderStaffPestAlerts() {
     const listContainer = document.getElementById('staff-pest-alerts-list');
     const countBadge = document.getElementById('staff-pest-alert-count');
@@ -21516,18 +21564,29 @@ function renderStaffPestAlerts() {
         card.style.flexDirection = "column";
         card.style.gap = "4px";
         
+        const escPest = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+        const repliedHtml = report.staffReplyNote
+            ? `<div style="margin-top:4px; background:#e6fffa; border:1px solid #38b2ac; border-radius:6px; padding:6px; font-size:11px; color:#234e52;">✅ ตอบแล้ว: ${escPest(report.staffReplyNote)} <span style="font-size:9px; color:#4a5568;">— ${escPest(report.staffReplyBy)} ${escPest(report.staffReplyTime)}</span></div>`
+            : '';
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:12px; color:#c53030;">🔴 ระบาด: ${report.pestDiagnoses}</span>
-                <span style="font-size:10px; background:#fed7d7; color:#9b2c2c; padding:1px 6px; border-radius:4px; font-weight:700;">ระดับ: ${report.pestLevels}</span>
+                <span style="font-weight:700; font-size:12px; color:#c53030;">🔴 ระบาด: ${escPest(report.pestDiagnoses)}</span>
+                <span style="font-size:10px; background:#fed7d7; color:#9b2c2c; padding:1px 6px; border-radius:4px; font-weight:700;">ระดับ: ${escPest(report.pestLevels)}</span>
             </div>
             <div style="font-size:11.5px; color:#4a5568; text-align:left;">
-                <strong>ชาวไร่:</strong> ${report.plotName || 'ไม่ระบุ'} (โควตา: ${report.quota})
-                <br>📍 <strong>พิกัด:</strong> ${report.pestLocation || 'ไม่ระบุ'}
-                <br>🧪 <strong>คำแนะนำ:</strong> ${report.pestRecipes || '-'}
-                <br><span style="font-size:9.5px; color:#a0aec0;">รายงานเมื่อ: ${report.offlineCreated || report.id.split('_')[1]}</span>
+                <strong>ชาวไร่:</strong> ${escPest(report.plotName || 'ไม่ระบุ')} (โควตา: ${escPest(report.quota)})
+                <br>📍 <strong>พิกัด:</strong> ${escPest(report.pestLocation || 'ไม่ระบุ')}
+                <br>🧪 <strong>คำแนะนำ:</strong> ${escPest(report.pestRecipes || '-')}
+                <br><span style="font-size:9.5px; color:#a0aec0;">รายงานเมื่อ: ${escPest(report.offlineCreated || (report.id ? String(report.id).split('_')[1] : ''))}</span>
             </div>
+            ${repliedHtml}
         `;
+        const replyBtn = document.createElement('button');
+        replyBtn.type = 'button';
+        replyBtn.textContent = report.staffReplyNote ? '✏️ แก้คำตอบ' : '✍️ ตอบกลับชาวไร่';
+        replyBtn.style.cssText = 'margin-top:6px; align-self:flex-start; background:#c53030; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:700; padding:5px 10px; cursor:pointer;';
+        replyBtn.addEventListener('click', () => replyToPestReport(report.id));
+        card.appendChild(replyBtn);
         listContainer.appendChild(card);
     });
 }
@@ -23784,6 +23843,7 @@ function submitPestReport() {
     tempPestLocation = "";
     const photoInput = document.getElementById('pest-photo-input');
     if (photoInput) photoInput.value = "";
+    if (typeof renderFarmerPestHistory === 'function') renderFarmerPestHistory();
 }
 
 

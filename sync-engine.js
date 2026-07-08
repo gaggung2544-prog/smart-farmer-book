@@ -770,6 +770,7 @@ async function pullCloudData(isSilent = true) {
             if (typeof renderAllPlotsOnMap === 'function') renderAllPlotsOnMap();
             if (typeof renderAssetDebtHub === 'function') renderAssetDebtHub();
             if (typeof renderStaffDashboard === 'function') renderStaffDashboard();
+            if (typeof renderFarmerPestHistory === 'function') renderFarmerPestHistory();
             if (typeof renderAnalyticsDashboard === 'function') renderAnalyticsDashboard();
             if (typeof fetchAndRenderWeather === 'function') fetchAndRenderWeather();
             if (typeof populatePlotDropdowns === 'function') populatePlotDropdowns();
@@ -944,19 +945,29 @@ async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = []
     plots = await SmartFarmerDB.getAll('plots');
     
     // 2. ผสาน ประวัติการวินิจฉัยโรคอ้อย (Pest Reports)
+    const isFarmerForPest = !localStorage.getItem('smart_farmer_staff_id');
+    let pestReplyNotified = false;
     for (const rawPest of cloudPests) {
         const mappedPest = mapSheetPestToLocalPest(rawPest);
         if (!mappedPest.id) continue;
-        
+
         if (unsyncedPestIds.has(mappedPest.plotId)) {
             console.log(`[Safe Merge] Skipped overwriting unsynced pest report: ${mappedPest.id}`);
             continue;
         }
-        
+
         const existingPest = await SmartFarmerDB.get('pest_reports', mappedPest.id);
+        // D5: แจ้งเตือนชาวไร่เมื่อมีคำตอบใหม่จากเจ้าหน้าที่
+        if (isFarmerForPest && mappedPest.staffReplyNote &&
+            (!existingPest || (existingPest.staffReplyNote || '') !== mappedPest.staffReplyNote)) {
+            pestReplyNotified = true;
+        }
         // เอา cloud ทับ local แต่ข้ามฟิลด์ที่ cloud ว่าง กันข้อมูลรายงานโรคเดิมถูกเซลล์ว่างลบทิ้ง
         const mergedPest = existingPest ? mergeCloudOverLocal(existingPest, mappedPest) : mappedPest;
         await SmartFarmerDB.put('pest_reports', mergedPest);
+    }
+    if (pestReplyNotified && typeof showToast === 'function') {
+        showToast('👨‍💼 เจ้าหน้าที่ตอบกลับรายงานแจ้งโรคของคุณแล้ว', 'info');
     }
     
     // อัปเดตตัวแปรระบบในเมมโมรี่
@@ -1151,7 +1162,13 @@ function mapSheetPestToLocalPest(sheetPest) {
         "พิกัดที่เกิดโรค (Lat,Lng)": "pestLocation",
         "ภาพถ่ายจุดเกิดโรค (Base64)": "pestPhoto",
         "เวลาบันทึกจริง (Offline)": "offlineCreated",
-        "แก้ไขออฟไลน์": "isOffline"
+        "แก้ไขออฟไลน์": "isOffline",
+        "รหัสรายงาน (Pest ID)": "id",
+        "รหัสแปลง (Plot ID)": "plotId",
+        "สถานะการตอบกลับ": "staffReplyStatus",
+        "คำแนะนำเจ้าหน้าที่": "staffReplyNote",
+        "เจ้าหน้าที่ผู้ตอบ": "staffReplyBy",
+        "เวลาตอบกลับ": "staffReplyTime"
     };
 
     const localPest = {};

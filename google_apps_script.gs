@@ -1073,7 +1073,9 @@ function processData(data, e) {
         "พิกัดที่เกิดโรค (Lat,Lng)",
         "ภาพถ่ายจุดเกิดโรค (Base64)",
         "เวลาบันทึกจริง (Offline)",
-        "แก้ไขออฟไลน์"
+        "แก้ไขออฟไลน์",
+        "รหัสรายงาน (Pest ID)", "รหัสแปลง (Plot ID)",
+        "สถานะการตอบกลับ", "คำแนะนำเจ้าหน้าที่", "เจ้าหน้าที่ผู้ตอบ", "เวลาตอบกลับ"
       ];
 
       rowValues = [
@@ -1087,7 +1089,13 @@ function processData(data, e) {
         plot.pestLocation || "-",
         plot.pestPhoto || "-",
         plot.offlineCreated || "-",
-        plot.isOffline ? "ใช่" : "ไม่ใช่"
+        plot.isOffline ? "ใช่" : "ไม่ใช่",
+        plot.id || "",
+        plot.plotId || "",
+        plot.staffReplyStatus || "",
+        plot.staffReplyNote || "",
+        plot.staffReplyBy || "",
+        plot.staffReplyTime || ""
       ];
     } else if (type === "AUDIT_LOG") {
       sheetName = "ประวัติการใช้งานระบบ";
@@ -1173,6 +1181,29 @@ function processData(data, e) {
         }
 
         sheet.getRange(rowIndex, 1, 1, rowValues.length).setValues([rowValues]);
+      } else {
+        sheet.appendRow(rowValues);
+      }
+    } else if (type === "PEST") {
+      // D5: upsert รายงานโรคตาม id (คอลัมน์ 11) เพื่อให้เจ้าหน้าที่ตอบกลับทับแถวเดิมได้
+      ensureHeaders_(sheet, headers);
+      var pestVals = sheet.getDataRange().getValues();
+      var pestRowIdx = -1;
+      var pestId = String(plot.id || '');
+      if (pestId) {
+        for (var pi = 1; pi < pestVals.length; pi++) {
+          if (String(pestVals[pi][11]) === pestId) { pestRowIdx = pi + 1; break; }
+        }
+      }
+      if (pestRowIdx !== -1) {
+        var pestExisting = sheet.getRange(pestRowIdx, 1, 1, sheet.getLastColumn()).getValues()[0];
+        // ชาวไร่รีเขียนรายงาน -> คงฟิลด์ตอบกลับของเจ้าหน้าที่ (idx 13-16)
+        if (plot._updaterRole !== 'STAFF') {
+          for (var rc = 13; rc <= 16; rc++) {
+            rowValues[rc] = (pestExisting[rc] !== "" && pestExisting[rc] !== undefined) ? pestExisting[rc] : rowValues[rc];
+          }
+        }
+        sheet.getRange(pestRowIdx, 1, 1, rowValues.length).setValues([rowValues]);
       } else {
         sheet.appendRow(rowValues);
       }
