@@ -153,6 +153,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    user-select: none;
+    -webkit-user-select: none;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -202,6 +204,8 @@ body {
     padding: 16px;
     padding-bottom: 96px; /* leave space for navbar */
     scroll-behavior: smooth;
+    overscroll-behavior-y: contain; /* กันสกอร์ลทะลุ/เด้งเกินขอบ ให้ลื่นเหมือนเนทีฟ */
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Screens transitions */
@@ -731,6 +735,8 @@ h1 {
     display: flex;
     justify-content: flex-start;
     align-items: center;
+    user-select: none;
+    -webkit-user-select: none;
     z-index: 100;
     border-bottom-left-radius: 38px;
     border-bottom-right-radius: 38px;
@@ -906,9 +912,11 @@ h1 {
     .phone-mockup {
         width: 100vw;
         height: 100vh;
+        height: 100dvh; /* เต็มจอจริงบนมือถือ (ไม่รวม/รวมแถบเบราว์เซอร์ให้ถูกต้อง) */
         border-radius: 0;
         padding: 0;
         box-shadow: none;
+        overscroll-behavior: none; /* กันเด้ง/pull-to-refresh ให้รู้สึกเหมือนเนทีฟ */
     }
     .phone-mockup::before {
         display: none; /* Hide notch on real mobile */
@@ -918,10 +926,13 @@ h1 {
         box-shadow: none;
     }
     .app-header {
-        padding-top: 16px; /* Reset padding for notch */
+        /* เผื่อ safe-area รอยบาก/แถบสถานะเวลาเปิดแบบ standalone (แทนที่ padding 16px คงที่เดิม) */
+        padding-top: max(16px, env(safe-area-inset-top));
     }
     .app-nav {
         border-radius: 0;
+        /* เผื่อแถบ home indicator ล่างจอ */
+        padding-bottom: env(safe-area-inset-bottom);
     }
 }
 

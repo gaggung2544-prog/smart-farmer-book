@@ -15725,8 +15725,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Failed to load cached quota-to-subzone map:", e);
     }
 
-    // Inject PWA manifest dynamically only on HTTP/HTTPS to avoid file:// CORS console errors
-    if (window.location.protocol !== 'file:') {
+    // มีลิงก์ manifest แบบ static ใน index.html แล้ว; inject เพิ่มเฉพาะกรณีไม่มี (กันซ้ำ) และไม่ใช่ file://
+    if (window.location.protocol !== 'file:' && !document.querySelector('link[rel="manifest"]')) {
         const link = document.createElement('link');
         link.rel = 'manifest';
         link.href = 'manifest.json';
@@ -15923,6 +15923,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
         switchScreen('screen-dashboard');
     }
+
+    // App shortcut / deep-link: เปิดตรงหน้าจากทางลัดไอคอน (manifest shortcuts) เช่น ?go=screen-pest
+    // ทำเฉพาะเมื่อล็อกอินแล้ว (ไม่มี login overlay ค้าง) และเป็นหน้าจอที่รู้จัก
+    try {
+        const goParam = new URLSearchParams(window.location.search).get('go');
+        const loginOverlay = document.getElementById('login-overlay');
+        const loggedIn = loginOverlay && loginOverlay.classList.contains('d-none');
+        if (goParam && /^screen-[a-z-]+$/.test(goParam) && document.getElementById(goParam) && loggedIn) {
+            switchScreen(goParam);
+        }
+    } catch (e) { /* ignore */ }
+
     setupEventListeners();
     if (typeof setupReportEventListeners === 'function') setupReportEventListeners();
 
@@ -16008,49 +16020,62 @@ document.addEventListener('DOMContentLoaded', async () => {
         // iOS detection for Safari installation instructions
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
-        if (isIOS && isSafari) {
-            if (pwaIosInstructions) pwaIosInstructions.style.display = 'block';
-            if (btnInstallPwa) btnInstallPwa.style.display = 'none';
-            if (pwaInstalledStatus) pwaInstalledStatus.style.display = 'none';
-        }
 
         // Android / Chrome / Windows / Mac install prompt
         const quickBanner = document.getElementById('dashboard-pwa-banner');
         const btnQuickInstall = document.getElementById('btn-quick-install-pwa');
+        const installCta = document.getElementById('dashboard-install-cta');   // แบนเนอร์เด่นบนหน้าแรก
+        const btnInstallCta = document.getElementById('btn-install-cta');
+
+        if (isIOS) {
+            // iOS ไม่มี beforeinstallprompt -> โชว์ CTA + วิธีเพิ่มลงโฮมเมื่อกด
+            if (pwaIosInstructions) pwaIosInstructions.style.display = 'block';
+            if (btnInstallPwa) btnInstallPwa.style.display = 'none';
+            if (pwaInstalledStatus) pwaInstalledStatus.style.display = 'none';
+            if (installCta) installCta.style.display = 'flex';
+        }
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             if (btnInstallPwa) btnInstallPwa.style.display = 'flex';
             if (quickBanner) quickBanner.style.display = 'flex'; // Show banner on dashboard
-            
+            if (installCta) installCta.style.display = 'flex';
+
             if (pwaIosInstructions) pwaIosInstructions.style.display = 'none';
             if (pwaInstalledStatus) pwaInstalledStatus.style.display = 'none';
         });
 
         const handleInstallClick = (e) => {
+            // iOS: ไม่มี prompt -> บอกวิธีเพิ่มลงหน้าโฮม
+            if (!deferredPrompt) {
+                if (isIOS) {
+                    alert('วิธีติดตั้งบน iPhone/iPad:\n1) แตะปุ่ม "แชร์" (สี่เหลี่ยมมีลูกศรขึ้น) ด้านล่าง\n2) เลื่อนหา "เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)\n3) แตะ "เพิ่ม"');
+                }
+                return;
+            }
             if (btnInstallPwa) btnInstallPwa.style.display = 'none';
             if (quickBanner) quickBanner.style.display = 'none';
-            
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('User accepted the A2HS prompt');
-                        if (pwaInstalledStatus) pwaInstalledStatus.style.display = 'block';
-                    } else {
-                        console.log('User dismissed the A2HS prompt');
-                        if (btnInstallPwa) btnInstallPwa.style.display = 'flex';
-                        if (quickBanner) quickBanner.style.display = 'flex';
-                    }
-                    deferredPrompt = null;
-                });
-            }
+            if (installCta) installCta.style.display = 'none';
+
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the A2HS prompt');
+                    if (pwaInstalledStatus) pwaInstalledStatus.style.display = 'block';
+                } else {
+                    console.log('User dismissed the A2HS prompt');
+                    if (btnInstallPwa) btnInstallPwa.style.display = 'flex';
+                    if (quickBanner) quickBanner.style.display = 'flex';
+                    if (installCta) installCta.style.display = 'flex';
+                }
+                deferredPrompt = null;
+            });
         };
 
         if (btnInstallPwa) btnInstallPwa.addEventListener('click', handleInstallClick);
         if (btnQuickInstall) btnQuickInstall.addEventListener('click', handleInstallClick);
+        if (btnInstallCta) btnInstallCta.addEventListener('click', handleInstallClick);
     }
 
     // Monitor PWA installation status
@@ -16059,6 +16084,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (pwaInstalledStatus) pwaInstalledStatus.style.display = 'block';
         if (btnInstallPwa) btnInstallPwa.style.display = 'none';
         if (pwaIosInstructions) pwaIosInstructions.style.display = 'none';
+        const installCta = document.getElementById('dashboard-install-cta');
+        if (installCta) installCta.style.display = 'none';
     });
 });
 

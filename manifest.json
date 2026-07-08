@@ -1,24 +1,61 @@
 {
+  "id": "/smart-farmer-book/",
   "name": "Smart Farmer Book | สมุดดิจิทัลชาวไร่",
   "short_name": "Smart Farmer",
   "description": "สมุดดิจิทัลชาวไร่อ้อยออฟไลน์และระบบส่งเสริมเกษตรกรอัจฉริยะ",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
+  "lang": "th",
+  "dir": "ltr",
   "background_color": "#f8f9fa",
   "theme_color": "#0F2C59",
-  "orientation": "portrait",
+  "categories": ["productivity", "business", "utilities"],
   "icons": [
     {
       "src": "./smart_farmer_logo_192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "./smart_farmer_logo_512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./smart_farmer_maskable_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "แจ้งปลูกอ้อย",
+      "short_name": "แจ้งปลูก",
+      "url": "./index.html?go=screen-register",
+      "icons": [{ "src": "./smart_farmer_logo_192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "แจ้งโรค/แมลง",
+      "short_name": "แจ้งโรค",
+      "url": "./index.html?go=screen-pest",
+      "icons": [{ "src": "./smart_farmer_logo_192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "แชทเจ้าหน้าที่ส่งเสริม",
+      "short_name": "แชท",
+      "url": "./index.html?go=screen-chat",
+      "icons": [{ "src": "./smart_farmer_logo_192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "ขอสนับสนุน",
+      "short_name": "สนับสนุน",
+      "url": "./index.html?go=screen-support",
+      "icons": [{ "src": "./smart_farmer_logo_192.png", "sizes": "192x192" }]
     }
   ]
 }

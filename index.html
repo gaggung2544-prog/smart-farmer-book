@@ -6,11 +6,13 @@
          มี 'unsafe-inline' เพราะแอปใช้ inline onclick/style เยอะ; ยืนยันแล้วว่าไม่มี eval จึงไม่ใส่ 'unsafe-eval'
          allowlist: unpkg (leaflet), jsdelivr/cdnjs (เผื่อ chart/marker), fonts.google, youtube/line frame -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:; media-src 'self' data: blob:; frame-src 'self' https://www.youtube.com https://access.line.me; object-src 'none'; base-uri 'self'; form-action 'self'">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Smart Farmer Book | สมุดดิจิทัลชาวไร่</title>
-    
+
     <!-- PWA Settings -->
     <meta name="theme-color" content="#0F2C59">
+    <!-- ลิงก์ manifest แบบ static เพื่อให้เบราว์เซอร์ประเมิน installability ได้เชื่อถือ (app.js ยัง inject ซ้ำเป็น fallback สำหรับ file://) -->
+    <link rel="manifest" href="manifest.json">
     
     <!-- iOS & Android Web App Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -383,6 +385,21 @@
                     <p class="subtitle">วิเคราะห์ภาพรวมการลงทุนและผลผลิตทั้งหมดของคุณในที่เดียว</p>
                     <div id="dash-last-sync" onclick="if(typeof pullCloudData==='function')pullCloudData(false)" title="แตะเพื่อดึงข้อมูลล่าสุดจากคลาวด์" style="font-size:11px; color:var(--text-secondary); margin:-6px 0 12px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                         🔄 <span id="dash-last-sync-text">อัปเดตล่าสุด: —</span>
+                    </div>
+
+                    <!-- การ์ดทักทายเฉพาะตัว (WS3) -->
+                    <div id="dash-greeting-card" class="d-none"></div>
+
+                    <!-- แบนเนอร์ชวนติดตั้งแอป (เด่นบนหน้าแรก เมื่อยังไม่ติดตั้ง) -->
+                    <div id="dashboard-install-cta" class="d-none" style="background: linear-gradient(135deg, #0F2C59, #1E40AF); border-radius: 14px; padding: 12px 14px; color: white; align-items: center; justify-content: space-between; box-shadow: 0 6px 16px rgba(15, 44, 89, 0.25); margin-bottom: 16px;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="font-size:22px; background:rgba(255,255,255,0.18); width:42px; height:42px; border-radius:10px; display:flex; justify-content:center; align-items:center; flex-shrink:0;">📲</div>
+                            <div>
+                                <div style="font-size:13px; font-weight:800;">ติดตั้งเป็นแอปในเครื่อง</div>
+                                <div style="font-size:11px; opacity:0.92; line-height:1.35;">เปิดจากหน้าโฮมได้เลย ใช้ได้แม้ไม่มีเน็ต เหมือนแอปจริง</div>
+                            </div>
+                        </div>
+                        <button type="button" id="btn-install-cta" style="background:white; color:#0F2C59; border:none; border-radius:20px; font-size:12px; font-weight:800; padding:8px 16px; cursor:pointer; flex-shrink:0;">ติดตั้ง</button>
                     </div>
 
                     <!-- Sugarcane Seasonal Activity Advisor Card (NEW) -->
