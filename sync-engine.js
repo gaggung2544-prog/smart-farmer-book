@@ -737,6 +737,7 @@ async function pullCloudData(isSilent = true) {
             
             console.log(`[Cloud Sync] Retrieved ${cloudPlots.length} plots, ${cloudPests.length} pest reports, and ${deletedItems.length} deleted items.`);
             await mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems, isDeltaSync);
+            mergeCloudAssetDebt(resJson.assetDebt); // F3: ผสานหลักทรัพย์/หนี้สิน
 
             // บันทึกเวลาที่ดึงข้อมูลสำเร็จ เพื่อโชว์ "อัปเดตล่าสุดเมื่อ..." ให้ผู้ใช้
             try { localStorage.setItem('smart_farmer_last_sync', String(Date.now())); } catch (e) {}
@@ -805,6 +806,34 @@ function mergeCloudOverLocal(localObj, cloudObj) {
         }
     }
     return out;
+}
+
+// ผสาน record หลักทรัพย์/หนี้สินจากคลาวด์ลง localStorage (F3) — latest updatedAt wins
+function mergeCloudAssetDebt(records) {
+    if (!Array.isArray(records) || records.length === 0) return;
+    let assetsDB = {}, debtsDB = {};
+    try { assetsDB = JSON.parse(localStorage.getItem('smart_farmer_assets_db') || '{}'); } catch (e) {}
+    try { debtsDB = JSON.parse(localStorage.getItem('smart_farmer_debts_db') || '{}'); } catch (e) {}
+    let changed = false;
+    records.forEach(r => {
+        if (!r || !r.key || !r.data) return;
+        const target = (r.kind === 'debt') ? debtsDB : assetsDB;
+        const local = target[r.key];
+        const localT = local ? parseDate(local.lastUpdated) : 0;
+        const cloudT = parseDate(r.updatedAt || (r.data && r.data.lastUpdated));
+        // เอา cloud ถ้าไม่มี local หรือ cloud ใหม่กว่า/เท่ากัน
+        if (!local || cloudT >= localT) {
+            target[r.key] = r.data;
+            changed = true;
+        }
+    });
+    if (changed) {
+        localStorage.setItem('smart_farmer_assets_db', JSON.stringify(assetsDB));
+        localStorage.setItem('smart_farmer_debts_db', JSON.stringify(debtsDB));
+        if (typeof loadAssetDebtDB === 'function') loadAssetDebtDB();       // รีเฟรช global ใน app.js
+        if (typeof renderAssetDebtHub === 'function') renderAssetDebtHub();
+        if (typeof renderStaffAssetDebtRequests === 'function') renderStaffAssetDebtRequests();
+    }
 }
 
 async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = [], isDeltaSync = false) {

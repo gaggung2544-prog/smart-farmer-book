@@ -23824,6 +23824,21 @@ function saveAssetDebtDB() {
     }
 }
 
+// ส่ง record หลักทรัพย์/หนี้สินขึ้นคลาวด์ (F3) — เดิมอยู่แค่ localStorage ไม่เคยข้ามอุปกรณ์
+// kind: 'asset' | 'debt'; key: '<quota>_<cropYear>'
+function syncAssetDebtRecord(kind, key, record) {
+    if (typeof syncToGoogleSheet !== 'function' || !record) return;
+    syncToGoogleSheet('UPDATE', {
+        id: 'AD_' + kind + '_' + key,   // ให้คิว dedup ตาม record
+        kind: kind,
+        key: key,
+        quota: record.quota || String(key).split('_')[0],
+        cropYear: record.cropYear || String(key).split('_').slice(1).join('_'),
+        data: record,
+        lastUpdated: record.lastUpdated
+    }, 'ASSET_DEBT');
+}
+
 // Dynamically generate crop year dropdown selections from 2569/70 to 2599/2600
 function populateCropYearDropdowns() {
     const regCropSelect = document.getElementById('reg-crop-year');
@@ -24050,6 +24065,7 @@ function submitAssetVerificationRequest() {
     }
     
     saveAssetDebtDB();
+    syncAssetDebtRecord('asset', dbKey, assetsDB[dbKey]);
     addSystemAuditLog('REQUEST_ASSETS', 'ASSET_DEBT', quota, `ชาวไร่ส่งคำขอตรวจสอบมูลค่าหลักทรัพย์ ปีการผลิต ${cropYear}`);
     alert("📤 ส่งคำขอตรวจสอบมูลค่าหลักทรัพย์ไปยังผู้ส่งเสริมในสายของคุณแล้ว! กรุณารอผลยืนยันจากเจ้าหน้าที่ครับ");
     renderAssetDebtHub();
@@ -24075,6 +24091,7 @@ function submitDebtStatementRequest() {
     }
     
     saveAssetDebtDB();
+    syncAssetDebtRecord('debt', dbKey, debtsDB[dbKey]);
     addSystemAuditLog('REQUEST_DEBTS', 'ASSET_DEBT', quota, `ชาวไร่ส่งคำขอดูยอดหนี้สะสมปีการผลิต ${cropYear}`);
     alert("📤 ส่งคำขอดูรายงานแจ้งหนี้ฤดูกาลนี้ไปยังผู้ส่งเสริมแล้ว! เมื่อเจ้าหน้าที่อัปโหลดและปิดบังข้อมูลด้วย AI Masking แล้ว ระบบจะแจ้งผลทันที");
     renderAssetDebtHub();
@@ -24692,6 +24709,8 @@ function saveStaffAssetDebtData() {
     }
     
     saveAssetDebtDB();
+    syncAssetDebtRecord('asset', dbKey, assetsDB[dbKey]);
+    if (debtsDB[dbKey]) syncAssetDebtRecord('debt', dbKey, debtsDB[dbKey]);
     addSystemAuditLog('VERIFY_ASSETS', 'ASSET_DEBT', quota, `เจ้าหน้าที่ประเมินหลักทรัพย์และหนี้สิน ปีการผลิต ${cropYear} (สถานะ: ${status})`);
     
     alert("💾 บันทึกและส่งข้อมูลหลักทรัพย์/หนี้สินกลับไปยังชาวไร่เรียบร้อยแล้ว!");

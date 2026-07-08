@@ -564,7 +564,30 @@ function pullAllData(authCtx) {
   }
   // staff token: คืนทั้งหมด (การจำกัดตามสายย่อยทำที่ client อยู่แล้ว; จะย้ายมาทำที่นี่ในเฟสถัดไป)
 
-  return jsonOut_({ status: 'success', plots: plotsList, pestReports: pestsList });
+  // หลักทรัพย์/หนี้สิน (F3): อ่าน record ทั้งหมด (scope ตามโควตาถ้าเป็นชาวไร่)
+  var assetDebt = [];
+  var adSheet = ss.getSheetByName("หลักทรัพย์และหนี้สิน");
+  if (adSheet) {
+    var adv = adSheet.getDataRange().getValues();
+    for (var ai = 1; ai < adv.length; ai++) {
+      if (!adv[ai][0]) continue;
+      var adQuota = String(adv[ai][2] || '').trim();
+      if (authCtx && authCtx.role === 'farmer' && adQuota !== String(authCtx.sub).trim()) continue;
+      var adData = {};
+      try { adData = JSON.parse(adv[ai][4]); } catch (e) {}
+      var adCrop = String(adv[ai][3] || '');
+      assetDebt.push({
+        kind: adv[ai][1],
+        key: adQuota + '_' + adCrop,
+        quota: adQuota,
+        cropYear: adCrop,
+        data: adData,
+        updatedAt: adv[ai][5]
+      });
+    }
+  }
+
+  return jsonOut_({ status: 'success', plots: plotsList, pestReports: pestsList, assetDebt: assetDebt });
 }
 
 // ฟังก์ชันดึงข้อมูลสรุปจากชีตหลังบ้านทั้งหมดเพื่อนำไปวิเคราะห์แบบ Real-time
@@ -788,6 +811,37 @@ function processData(data, e) {
       }
       sheet.appendRow(rowValues);
       return jsonOut_({ status: "success", message: "Saved chat message successfully" });
+    }
+
+    // หลักทรัพย์/หนี้สิน (F3): เก็บเป็น 1 แถวต่อ record (upsert ตาม kind|key) เพื่อ sync ข้ามอุปกรณ์
+    if (type === "ASSET_DEBT") {
+      var rec = data.data || {};
+      // ชาวไร่แก้ได้เฉพาะของโควตาตัวเอง
+      if (isAuthEnforced_() && authCtx && authCtx.role === 'farmer') {
+        var rq = String(rec.quota || '').trim();
+        if (rq && rq !== String(authCtx.sub).trim()) {
+          return jsonOut_({ status: "error", code: 'FORBIDDEN', message: "ไม่มีสิทธิ์แก้ไขข้อมูลของโควตาอื่น" });
+        }
+      }
+      var adSheetName = "หลักทรัพย์และหนี้สิน";
+      var adHeaders = ["คีย์ (kind|key)", "ประเภท (asset/debt)", "เลขโควตา (Quota)", "ปีการผลิต", "ข้อมูล (JSON)", "อัปเดตล่าสุด"];
+      var adSheet = ss.getSheetByName(adSheetName);
+      if (!adSheet) {
+        adSheet = ss.insertSheet(adSheetName);
+        adSheet.appendRow(adHeaders);
+        adSheet.getRange(1, 1, 1, adHeaders.length).setFontWeight("bold").setBackground("#e2f0d9");
+      }
+      ensureHeaders_(adSheet, adHeaders);
+      var rowKey = String(rec.kind || '') + '|' + String(rec.key || '');
+      var adRow = [rowKey, rec.kind || '', rec.quota || '', rec.cropYear || '', JSON.stringify(rec.data || {}), rec.lastUpdated || new Date().toLocaleString('th-TH')];
+      var adVals = adSheet.getDataRange().getValues();
+      var adIdx = -1;
+      for (var ai = 1; ai < adVals.length; ai++) {
+        if (String(adVals[ai][0]) === rowKey) { adIdx = ai + 1; break; }
+      }
+      if (adIdx !== -1) adSheet.getRange(adIdx, 1, 1, adRow.length).setValues([adRow]);
+      else adSheet.appendRow(adRow);
+      return jsonOut_({ status: "success", message: "Saved asset/debt record" });
     }
 
     var sheetName = "";
