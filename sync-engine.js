@@ -821,9 +821,13 @@ function mergeCloudAssetDebt(records) {
         const target = (r.kind === 'debt') ? debtsDB : assetsDB;
         const local = target[r.key];
         const localT = local ? parseDate(local.lastUpdated) : 0;
-        const cloudT = parseDate(r.updatedAt || (r.data && r.data.lastUpdated));
-        // เอา cloud ถ้าไม่มี local หรือ cloud ใหม่กว่า/เท่ากัน
-        if (!local || cloudT >= localT) {
+        // ใช้ lastUpdated ที่อยู่ "ใน JSON blob" ก่อน (เป็นข้อความ ไม่ถูก Google Sheets แปลงเป็น Date/ISO)
+        // เดิมใช้ r.updatedAt (เซลล์วันที่ในชีต) ที่ถูก coerce -> parseDate อ่านผิด -> COMPLETED ไม่ทับ
+        const cloudT = parseDate((r.data && r.data.lastUpdated) || r.updatedAt);
+        // COMPLETED (เจ้าหน้าที่ตอบกลับแล้ว) ต้องชนะ SUBMITTED ในเครื่องเสมอ แม้ timestamp จะเพี้ยน/เท่ากัน
+        const cloudCompleted = r.data && r.data.requestStatus === 'COMPLETED';
+        const localCompleted = local && local.requestStatus === 'COMPLETED';
+        if (!local || cloudT >= localT || (cloudCompleted && !localCompleted)) {
             target[r.key] = r.data;
             changed = true;
         }
