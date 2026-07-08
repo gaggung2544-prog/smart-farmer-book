@@ -827,15 +827,20 @@ async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = []
         
         const existingPlot = await SmartFarmerDB.get('plots', mappedPlot.id);
         
-        // Check if there is an unread staff reply update for the farmer
+        // ตรวจว่าเจ้าหน้าที่เพิ่งตอบคำขอของชาวไร่หรือไม่ (สำหรับแจ้งเตือน)
+        // FIX (F1): เดิมพึ่ง staffReplyTime ที่ "ไม่เคยถูก sync" (ไม่มีคอลัมน์ในชีต+ไม่มีใน mapper)
+        // -> newReplyTime เป็น '' เสมอ -> การแจ้งเตือนไม่เคยทำงานข้ามอุปกรณ์
+        // แก้เป็นตรวจจาก supportStatus / staffNote ที่ round-trip จริงผ่านชีต
         const isFarmer = !localStorage.getItem('smart_farmer_staff_id');
         let hasReplyUpdate = false;
         if (isFarmer && existingPlot) {
             const oldStatus = existingPlot.supportStatus || '';
-            const oldReplyTime = existingPlot.staffReplyTime || '';
             const newStatus = mappedPlot.supportStatus || '';
-            const newReplyTime = mappedPlot.staffReplyTime || '';
-            if ((oldStatus !== newStatus || oldReplyTime !== newReplyTime) && newReplyTime !== '') {
+            const oldNote = existingPlot.staffNote || '';
+            const newNote = mappedPlot.staffNote || '';
+            const replyChanged = (oldStatus !== newStatus) || (oldNote !== newNote);
+            // แจ้งเตือนเมื่อมีการเปลี่ยนแปลง และสถานะไม่ใช่ "รอการตอบกลับ" (ตรงกับที่ UI จะแสดงคำตอบ)
+            if (replyChanged && newStatus !== '' && newStatus !== 'รอการตอบกลับ') {
                 hasReplyUpdate = true;
             }
         }
@@ -861,6 +866,10 @@ async function mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems = []
 
         if (hasReplyUpdate) {
             mergedPlot.hasUnreadStaffReply = true;
+            // เติมเวลาตอบกลับจาก updatedAt ของเซิร์ฟเวอร์ ให้หน้าจอชาวไร่แสดง "อัปเดตล่าสุด" ได้ข้ามอุปกรณ์
+            if (!mergedPlot.staffReplyTime && mappedPlot.updatedAt) {
+                mergedPlot.staffReplyTime = mappedPlot.updatedAt;
+            }
             if (typeof showToast === 'function') {
                 showToast(`🔊 เจ้าหน้าที่ตอบกลับคำขอสนับสนุนในแปลง ${mergedPlot.name || mergedPlot.id} แล้ว`, 'info');
             }
