@@ -2739,6 +2739,37 @@
         <iframe id="inapp-frame" src="" style="flex:1; width:100%; border:none; background:#fff;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
 
+    <!-- ชาวไร่ยืนยัน "เจ้าหน้าที่มาเข้าพบแล้ว" (รูป + หมายเหตุ) -->
+    <div id="visit-confirm-modal" class="d-none" style="position:fixed; inset:0; z-index:10060; background:rgba(15,23,42,0.55); display:flex; align-items:flex-end; justify-content:center; padding:0;">
+        <div style="width:100%; max-width:520px; background:var(--card-bg,#fff); border-radius:18px 18px 0 0; max-height:92vh; overflow-y:auto; box-sizing:border-box; padding:18px 18px max(18px,env(safe-area-inset-bottom));">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <span style="font-size:16px; font-weight:800; color:var(--text-primary,#0f172a);">✅ ยืนยันเจ้าหน้าที่เข้าพบ</span>
+                <button type="button" onclick="closeVisitConfirm()" title="ปิด" style="background:rgba(0,0,0,0.06); border:none; color:var(--text-primary,#0f172a); width:34px; height:34px; border-radius:50%; font-size:18px; cursor:pointer;">✕</button>
+            </div>
+            <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; color:#0369a1;">
+                แปลง: <strong id="visit-confirm-plot-name">-</strong><br>
+                📅 นัดหมาย: <strong id="visit-confirm-appt-date">-</strong>
+            </div>
+
+            <div style="font-size:12.5px; font-weight:700; color:var(--text-primary,#0f172a); margin-bottom:6px;">📸 รูปถ่าย (ไม่บังคับ)</div>
+            <input type="file" id="visit-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="handleVisitPhotoUpload(event)">
+            <button type="button" onclick="document.getElementById('visit-photo-input').click()" style="width:100%; height:42px; margin:0 0 10px; border:1px dashed #94a3b8; border-radius:10px; background:transparent; color:var(--text-primary,#0f172a); font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                📷 ถ่ายรูป / อัปโหลดรูปเป็นหลักฐาน
+            </button>
+            <div id="visit-confirm-preview-container" class="d-none" style="margin-bottom:12px;">
+                <img id="visit-confirm-preview-img" src="" alt="รูปยืนยันการเข้าพบ" style="width:100%; border-radius:10px; display:block;">
+            </div>
+
+            <div style="font-size:12.5px; font-weight:700; color:var(--text-primary,#0f172a); margin-bottom:6px;">📝 หมายเหตุ</div>
+            <textarea id="visit-confirm-note" rows="3" placeholder="เช่น เจ้าหน้าที่มาเข้าพบและตรวจแปลงแล้วเมื่อเช้านี้" style="width:100%; box-sizing:border-box; border:1px solid var(--border-color,#cbd5e1); border-radius:10px; padding:10px; font-size:13px; font-family:inherit; resize:vertical; margin-bottom:16px;"></textarea>
+
+            <div style="display:flex; gap:10px;">
+                <button type="button" onclick="closeVisitConfirm()" style="flex:1; height:46px; border:1px solid var(--border-color,#cbd5e1); border-radius:24px; background:transparent; color:var(--text-primary,#0f172a); font-size:14px; font-weight:700; cursor:pointer;">ยกเลิก</button>
+                <button type="button" onclick="submitVisitConfirm()" style="flex:2; height:46px; border:none; border-radius:24px; background:#16a34a; color:#fff; font-size:14px; font-weight:800; cursor:pointer;">✅ ยืนยันเจ้าหน้าที่มาแล้ว</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="security.js"></script>
     <script src="sync-engine.js"></script>

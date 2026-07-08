@@ -15178,6 +15178,11 @@ async function initDB() {
         if (plot.staffId === undefined) plot.staffId = '';
         if (plot.staffReplyTime === undefined) plot.staffReplyTime = '';
         if (plot.staffVisitDate === undefined) plot.staffVisitDate = '';
+        // ชาวไร่ยืนยันเจ้าหน้าที่เข้าพบ (รูป + หมายเหตุ)
+        if (plot.visitConfirmed === undefined) plot.visitConfirmed = false;
+        if (plot.visitConfirmNote === undefined) plot.visitConfirmNote = '';
+        if (plot.visitConfirmPhoto === undefined) plot.visitConfirmPhoto = '';
+        if (plot.visitConfirmTime === undefined) plot.visitConfirmTime = '';
     });
     saveDB();
 }
@@ -16179,6 +16184,96 @@ function compressImage(file, callback) {
     };
 }
 
+// ============================================================================
+// ชาวไร่ยืนยัน "เจ้าหน้าที่มาเข้าพบแล้ว" (รูป + หมายเหตุ) → เอาแถบแจ้งเตือนออก → ซิงก์ขึ้น Sheets
+// คลอนแพตเทิร์นจาก saveStaffReply (savePlot + syncToGoogleSheet) + ถ่ายรูปแบบ PEST (compressImage)
+// ============================================================================
+let tempVisitPhotoBase64 = "";
+let visitConfirmPlotId = "";
+
+function openVisitConfirm(plotId) {
+    const plot = plots.find(p => p.id === plotId);
+    if (!plot) return;
+    visitConfirmPlotId = plotId;
+    tempVisitPhotoBase64 = "";
+    const modal = document.getElementById('visit-confirm-modal');
+    if (!modal) return;
+    const nameEl = document.getElementById('visit-confirm-plot-name');
+    if (nameEl) nameEl.textContent = plot.name || 'แปลงอ้อย';
+    const dateEl = document.getElementById('visit-confirm-appt-date');
+    if (dateEl) dateEl.textContent = plot.staffVisitDate ? (formatDateTimeThai(plot.staffVisitDate) + ' น.') : '-';
+    const noteEl = document.getElementById('visit-confirm-note');
+    if (noteEl) noteEl.value = '';
+    const prev = document.getElementById('visit-confirm-preview-container');
+    if (prev) prev.classList.add('d-none');
+    const photoInput = document.getElementById('visit-photo-input');
+    if (photoInput) photoInput.value = '';
+    modal.classList.remove('d-none');
+    // ดัน history state เพื่อให้ปุ่ม back ปิดหน้าต่างนี้ได้ (ผ่าน popstate -> closeTopmostModal)
+    try { history.pushState({ screenId: __currentScreenId }, ''); } catch (e) {}
+}
+
+function closeVisitConfirm() {
+    const modal = document.getElementById('visit-confirm-modal');
+    if (modal) modal.classList.add('d-none');
+    tempVisitPhotoBase64 = "";
+    visitConfirmPlotId = "";
+}
+
+function handleVisitPhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const container = document.getElementById('visit-confirm-preview-container');
+    const previewImg = document.getElementById('visit-confirm-preview-img');
+    if (container && previewImg) {
+        container.classList.remove('d-none');
+        compressImage(file, (base64Data) => {
+            tempVisitPhotoBase64 = base64Data;
+            previewImg.src = base64Data;
+        });
+    }
+}
+
+async function submitVisitConfirm() {
+    const plot = plots.find(p => p.id === visitConfirmPlotId);
+    if (!plot) { closeVisitConfirm(); return; }
+    const noteEl = document.getElementById('visit-confirm-note');
+    const note = noteEl ? noteEl.value.trim() : '';
+    // รูปไม่บังคับ แต่ต้องมีอย่างน้อย "รูป" หรือ "หมายเหตุ" อย่างใดอย่างหนึ่ง
+    if (!note && !tempVisitPhotoBase64) {
+        alert('กรุณาถ่ายรูปหรือใส่หมายเหตุอย่างน้อยหนึ่งอย่าง เพื่อยืนยันว่าเจ้าหน้าที่มาแล้วครับ');
+        return;
+    }
+    plot.visitConfirmed = true;
+    plot.visitConfirmNote = note;
+    plot.visitConfirmPhoto = tempVisitPhotoBase64 || '';
+    plot.visitConfirmTime = new Date().toLocaleString('th-TH');
+
+    savePlot(plot);
+    syncToGoogleSheet('UPDATE', plot, 'REGISTRATION');
+
+    closeVisitConfirm();
+
+    // รีเฟรช UI ให้แถบแจ้งเตือนบนหน้าแรกหายทันที
+    if (typeof runSmartAlertEngine === 'function') runSmartAlertEngine();
+    if (typeof renderDashboard === 'function') renderDashboard();
+    if (typeof updateNavBadges === 'function') updateNavBadges();
+
+    if (navigator.onLine) {
+        if (typeof showToast === 'function') showToast('กำลังส่งการยืนยันขึ้น Google Sheets...', 'info');
+        try {
+            await autoSyncPendingData(true);
+            if (typeof showToast === 'function') showToast('✅ ยืนยันการเข้าพบเรียบร้อยแล้ว!', 'success');
+            else alert('ยืนยันการเข้าพบเรียบร้อยแล้ว!');
+        } catch (err) {
+            console.error('Visit confirm sync failed:', err);
+            if (typeof showToast === 'function') showToast('บันทึกในเครื่องสำเร็จ แต่การส่งขึ้นคลาวด์ขัดข้อง (จะซิงก์ใหม่ภายหลัง)', 'warning');
+        }
+    } else {
+        if (typeof showToast === 'function') showToast('บันทึกในเครื่องสำเร็จ (อยู่ในคิวรอซิงก์เนื่องจากออฟไลน์)', 'warning');
+    }
+}
+
 // ── รองรับปุ่มย้อนกลับของเบราว์เซอร์/ฮาร์ดแวร์ (Android) ──
 // เดิม switchScreen แค่สลับ CSS class ไม่มี history -> กด back = ปิดแอปทั้งตัว
 let __currentScreenId = 'screen-dashboard';
@@ -16209,6 +16304,7 @@ function renderLastSyncIndicator() {
 function closeTopmostModal() {
     // เรียงตามลำดับความสำคัญ (บนสุดก่อน); ไม่รวม login-overlay เพราะเป็นด่านเข้าระบบ
     const modalIds = [
+        'visit-confirm-modal',
         'inapp-frame-modal',
         'profile-camera-modal',
         'staff-map-modal',
@@ -17353,6 +17449,13 @@ function updateSupportCheckboxes() {
             ${plot.staffVisitDate ? `
             <div style="margin-top: 10px; padding: 10px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-size: 11.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-sizing: border-box;">
                 <span>📅 <strong>นัดวันเวลาเข้าแปลง:</strong> ${formatDateTimeThai(plot.staffVisitDate)} น.</span>
+            </div>
+            ` : ''}
+            ${plot.visitConfirmed ? `
+            <div style="margin-top: 10px; padding: 10px; background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; color: #166534; font-size: 11.5px; font-weight: 600; box-sizing: border-box;">
+                <div style="display:flex; align-items:center; gap:8px;"><span>✅ <strong>ยืนยันเจ้าหน้าที่มาเข้าพบแล้ว</strong>${plot.visitConfirmTime ? ` (${plot.visitConfirmTime})` : ''}</span></div>
+                ${plot.visitConfirmNote ? `<div style="margin-top:6px; font-weight:500; color:#15803d;">📝 ${plot.visitConfirmNote}</div>` : ''}
+                ${plot.visitConfirmPhoto ? `<img src="${plot.visitConfirmPhoto}" alt="รูปยืนยันการเข้าพบ" style="margin-top:8px; max-width:100%; border-radius:8px; display:block;">` : ''}
             </div>
             ` : ''}
             ${plot.staffReplyTime && history.length === 1 ? `<div style="font-size:9px; color:var(--text-light); text-align:right; margin-top:6px;">อัปเดตล่าสุด: ${plot.staffReplyTime}<br>โดย: <strong>${(plot.staffName || getStaffName(plot.staffId)) || ('เจ้าหน้าที่ #' + (plot.staffId || '?'))}</strong></div>` : ''}
@@ -18935,7 +19038,11 @@ function setupEventListeners() {
                 staffNote: '',
                 staffId: '',
                 staffReplyTime: '',
-                staffVisitDate: ''
+                staffVisitDate: '',
+                visitConfirmed: false,
+                visitConfirmNote: '',
+                visitConfirmPhoto: '',
+                visitConfirmTime: ''
             };
             
             plots.push(newPlot);
@@ -23210,13 +23317,16 @@ function runSmartAlertEngine() {
     const lowYield = myPlots.filter(p=>{ const t=parseFloat(p.actualHarvestTons)||0,a=parseFloat(p.area)||1; return t>0 && (t/a)<6; });
     if (lowYield.length>0) alerts.push({type:'warning',icon:'📉',msg:`${lowYield.length} แปลงผลผลิตต่ำ (<6 ตัน/ไร่)`});
     
-    // แจ้งเตือนนัดวันเวลาเข้าแปลงโดยเจ้าหน้าที่
-    const upcomingVisits = myPlots.filter(p => p.staffVisitDate && p.staffVisitDate !== '');
+    // แจ้งเตือนนัดวันเวลาเข้าแปลงโดยเจ้าหน้าที่ (เฉพาะที่ชาวไร่ยังไม่ยืนยันว่าเจ้าหน้าที่มาแล้ว)
+    const isStaffViewer = !!localStorage.getItem('smart_farmer_staff_id');
+    const upcomingVisits = myPlots.filter(p => p.staffVisitDate && p.staffVisitDate !== '' && !p.visitConfirmed);
     upcomingVisits.forEach(p => {
+        // ปุ่มให้ชาวไร่ยืนยันว่าเจ้าหน้าที่มาแล้ว (inline onclick อยู่รอด innerHTML rebuild) — โชว์เฉพาะฝั่งชาวไร่
+        const confirmBtn = isStaffViewer ? '' : `<br><button type="button" onclick="openVisitConfirm('${p.id}')" style="margin-top:6px; display:inline-block; background:#0369a1; color:#fff; border:none; border-radius:16px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;">📸 ยืนยันว่าเจ้าหน้าที่มาแล้ว</button>`;
         alerts.push({
             type: 'info',
             icon: '📅',
-            msg: `เจ้าหน้าที่นัดหมายจะเข้าไปทำกิจกรรมที่แปลง <strong>${p.name}</strong> วันที่ ${formatDateTimeThai(p.staffVisitDate)} น.`
+            msg: `เจ้าหน้าที่นัดหมายจะเข้าไปทำกิจกรรมที่แปลง <strong>${p.name}</strong> วันที่ ${formatDateTimeThai(p.staffVisitDate)} น.${confirmBtn}`
         });
     });
     

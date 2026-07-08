@@ -872,7 +872,8 @@ function processData(data, e) {
         "ลิงก์รูปถ่ายแจ้งปลูก", "กิจกรรมที่ทำสำเร็จแล้ว", "สถานะอนุมัติ", "หมายเหตุพนักงาน", "รหัสพนักงานผู้ตอบ", "อัปเดตล่าสุด",
         "สถานะแผนที่ (Polygon)", "รหัสแปลงโรงงาน", "ข้อมูลขอบเขตแปลง (JSON)",
         "เวลาบันทึกจริง (Offline)", "แก้ไขออฟไลน์", "วันเวลาเข้าตรวจแปลง",
-        "คำขอคิวรถตัด (JSON)", "สถานะคิวรถตัด", "เหตุผลปฏิเสธแนวเขต"
+        "คำขอคิวรถตัด (JSON)", "สถานะคิวรถตัด", "เหตุผลปฏิเสธแนวเขต",
+        "ชาวไร่ยืนยันเข้าพบ", "หมายเหตุยืนยันเข้าพบ", "รูปยืนยันเข้าพบ", "เวลายืนยันเข้าพบ"
       ];
 
       if (action === "DELETE") {
@@ -897,6 +898,8 @@ function processData(data, e) {
       }
 
       var regPhotoUrl = saveBase64ImageToDrive(plot.regPhoto, "แจ้งปลูก_" + plot.cn + "_" + (plot.quota || "00000") + ".jpg");
+      // รูปยืนยันการเข้าพบของชาวไร่ → เก็บเป็นลิงก์ Drive (กันชน ~50k ตัวอักษร/เซลล์) เหมือน regPhoto
+      var visitConfirmPhotoUrl = plot.visitConfirmPhoto ? saveBase64ImageToDrive(plot.visitConfirmPhoto, "ยืนยันเข้าพบ_" + (plot.quota || "00000") + "_" + plot.id + ".jpg") : "";
       rowValues = [
         plot.id,
         plot.quota || "00000",
@@ -926,7 +929,11 @@ function processData(data, e) {
         plot.staffVisitDate || "-",
         plot.harvesterRequest ? JSON.stringify(plot.harvesterRequest) : "",
         plot.harvesterRequest ? (plot.harvesterRequest.status || "") : "",
-        plot.polygonRejectReason || ""
+        plot.polygonRejectReason || "",
+        plot.visitConfirmed ? "ยืนยันแล้ว" : "",
+        plot.visitConfirmNote || "",
+        visitConfirmPhotoUrl,
+        plot.visitConfirmTime || ""
       ];
 
     } else if (type === "SUPPORT") {
@@ -1178,6 +1185,15 @@ function processData(data, e) {
           // สถานะคิวรถตัด (idx 27) เป็นของเจ้าหน้าที่ -> ชาวไร่อัปเดตไม่ทับ (แต่คอลัมน์คำขอ JSON idx 26 ชาวไร่แก้ได้)
           rowValues[27] = (existingRow[27] !== "" && existingRow[27] !== undefined) ? existingRow[27] : rowValues[27]; // harvesterStatus
           rowValues[28] = (existingRow[28] !== "" && existingRow[28] !== undefined) ? existingRow[28] : rowValues[28]; // polygonRejectReason (staff)
+        }
+
+        // Preserve FARMER-owned visit-confirmation fields if update is from STAFF
+        // (กันเจ้าหน้าที่แก้แปลง (เช่น นัดใหม่) แล้วลบการยืนยันของชาวไร่ที่ยังไม่ได้ pull)
+        if (plot._updaterRole === 'STAFF') {
+          rowValues[29] = (existingRow[29] !== "" && existingRow[29] !== undefined) ? existingRow[29] : rowValues[29]; // visitConfirmed
+          rowValues[30] = (existingRow[30] !== "" && existingRow[30] !== undefined) ? existingRow[30] : rowValues[30]; // visitConfirmNote
+          rowValues[31] = (existingRow[31] !== "" && existingRow[31] !== undefined) ? existingRow[31] : rowValues[31]; // visitConfirmPhoto (Drive URL)
+          rowValues[32] = (existingRow[32] !== "" && existingRow[32] !== undefined) ? existingRow[32] : rowValues[32]; // visitConfirmTime
         }
 
         sheet.getRange(rowIndex, 1, 1, rowValues.length).setValues([rowValues]);

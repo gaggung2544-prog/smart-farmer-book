@@ -1060,7 +1060,11 @@ function mapSheetPlotToLocalPlot(sheetPlot) {
         "วันเวลาเข้าตรวจแปลง": "staffVisitDate",
         "คำขอคิวรถตัด (JSON)": "harvesterRequest",
         "สถานะคิวรถตัด": "harvesterStatus",
-        "เหตุผลปฏิเสธแนวเขต": "polygonRejectReason"
+        "เหตุผลปฏิเสธแนวเขต": "polygonRejectReason",
+        "ชาวไร่ยืนยันเข้าพบ": "visitConfirmed",
+        "หมายเหตุยืนยันเข้าพบ": "visitConfirmNote",
+        "รูปยืนยันเข้าพบ": "visitConfirmPhoto",
+        "เวลายืนยันเข้าพบ": "visitConfirmTime"
     };
 
     const localPlot = {};
@@ -1092,6 +1096,8 @@ function mapSheetPlotToLocalPlot(sheetPlot) {
             localPlot[localKey] = (val === "ใช่" || val === "yes" || val === true);
         } else if (localKey === "isOffline") {
             localPlot[localKey] = (val === "ใช่" || val === "yes" || val === true);
+        } else if (localKey === "visitConfirmed") {
+            localPlot[localKey] = (val === "ยืนยันแล้ว" || val === "yes" || val === true);
         } else if (localKey === "supportItems") {
             localPlot[localKey] = (typeof val === 'string' && val.trim() !== '') ? val.split(", ").map(s => s.trim()) : (Array.isArray(val) ? val : []);
         } else if (localKey === "completedActivities") {
