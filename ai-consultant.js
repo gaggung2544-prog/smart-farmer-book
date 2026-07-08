@@ -3,6 +3,16 @@
 let aiChatContext = {};
 let isAiVoiceMuted = false;
 
+// ประวัติแชทจริง (แทนการ scrape ข้อความจาก DOM ซึ่งเปราะและปน greeting/ข้อความ error)
+// เก็บในรูปแบบ Gemini contents เพื่อส่งต่อได้ตรงๆ
+let aiChatHistory = [];
+// บันทึกหนึ่งรอบสนทนา (ถาม-ตอบ) และจำกัดไว้ล่าสุด ~12 ข้อความ (6 รอบ) กัน token บวมและค่าใช้จ่าย
+function recordChatTurn(userText, modelText) {
+    aiChatHistory.push({ role: 'user', parts: [{ text: userText }] });
+    aiChatHistory.push({ role: 'model', parts: [{ text: modelText }] });
+    if (aiChatHistory.length > 12) aiChatHistory = aiChatHistory.slice(-12);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Expose functions to window
     window.openAIChat = openAIChat;
@@ -147,23 +157,26 @@ async function handleAiChatSubmit(e) {
             : (localStorage.getItem('smart_farmer_sheet_url') || '');
         const canUseProxy = !!backendUrl && navigator.onLine;
 
+        let aiText;
         if (canUseProxy) {
             try {
-                const response = await callGeminiAPI(message, aiChatContext);
+                aiText = await callGeminiAPI(message, aiChatContext);
                 hideTypingIndicator();
-                appendAiMessage(response, true);
+                appendAiMessage(aiText, true);
             } catch (error) {
                 console.error("AI proxy error:", error);
                 hideTypingIndicator();
-                const fallbackResponse = generateMockAiResponse(message, aiChatContext);
-                appendAiMessage(`ขออภัย ระบบ AI ขัดข้องชั่วคราว\n\n(ระบบจำลองคำตอบอัตโนมัติ):\n\n` + fallbackResponse, true);
+                aiText = generateMockAiResponse(message, aiChatContext);
+                appendAiMessage(`ขออภัย ระบบ AI ขัดข้องชั่วคราว\n\n(ระบบจำลองคำตอบอัตโนมัติ):\n\n` + aiText, true);
             }
         } else {
             await new Promise(res => setTimeout(res, 1200 + Math.random() * 800)); // 1.2 - 2.0s delay
             hideTypingIndicator();
-            const response = generateMockAiResponse(message, aiChatContext);
-            appendAiMessage(response, true);
+            aiText = generateMockAiResponse(message, aiChatContext);
+            appendAiMessage(aiText, true);
         }
+        // บันทึกรอบสนทนาไว้เป็นบริบทของครั้งถัดไป (เก็บคำตอบหลัก ไม่รวมข้อความ apology)
+        recordChatTurn(message, aiText);
     } finally {
         aiChatInFlight = false;
         if (sendBtn) sendBtn.disabled = false;
@@ -195,25 +208,8 @@ async function callGeminiAPI(query, context, apiKey) {
 \n`;
     }
 
-    // Gather history from UI
-    const messagesContainer = document.getElementById('ai-chat-messages');
-    const history = [];
-    if (messagesContainer) {
-        const bubbles = messagesContainer.querySelectorAll('.chat-bubble');
-        // Retrieve last 6 messages to keep context reasonable
-        const startIdx = Math.max(0, bubbles.length - 6);
-        for (let i = startIdx; i < bubbles.length; i++) {
-            const bubble = bubbles[i];
-            // Skip typing indicators or system error messages
-            if (bubble.id === 'ai-typing-indicator' || bubble.innerText.startsWith('ขออภัย ระบบขัดข้อง')) continue;
-            
-            const isUser = bubble.classList.contains('chat-bubble-user');
-            history.push({
-                role: isUser ? "user" : "model",
-                parts: [{ text: bubble.innerText }]
-            });
-        }
-    }
+    // ใช้ประวัติที่เก็บไว้จริง (ล่าสุดสุด ๆ ถูกจำกัดไว้แล้วใน recordChatTurn)
+    const history = aiChatHistory.slice();
 
     const payload = {
         contents: [
