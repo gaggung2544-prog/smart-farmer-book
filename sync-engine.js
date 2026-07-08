@@ -991,7 +991,9 @@ function mapSheetPlotToLocalPlot(sheetPlot) {
         "สถานะแผนที่ (Polygon)": "polygonStatus",
         "รหัสแปลงโรงงาน": "factoryPlotCode",
         "ข้อมูลขอบเขตแปลง (JSON)": "polygon",
-        "วันเวลาเข้าตรวจแปลง": "staffVisitDate"
+        "วันเวลาเข้าตรวจแปลง": "staffVisitDate",
+        "คำขอคิวรถตัด (JSON)": "harvesterRequest",
+        "สถานะคิวรถตัด": "harvesterStatus"
     };
 
     const localPlot = {};
@@ -1044,10 +1046,29 @@ function mapSheetPlotToLocalPlot(sheetPlot) {
             } else {
                 localPlot[localKey] = [];
             }
+        } else if (localKey === "harvesterRequest") {
+            if (typeof val === 'string' && val.trim() !== '') {
+                try {
+                    localPlot[localKey] = JSON.parse(val);
+                } catch (e) {
+                    localPlot[localKey] = null;
+                }
+            } else if (val && typeof val === 'object') {
+                localPlot[localKey] = val;
+            } else {
+                localPlot[localKey] = null;
+            }
         } else {
             localPlot[localKey] = val;
         }
     }
+
+    // รวมสถานะคิวรถตัด (เจ้าหน้าที่เป็นเจ้าของ) กลับเข้า harvesterRequest.status ให้ client ใช้เหมือนเดิม
+    if (localPlot.harvesterRequest && typeof localPlot.harvesterRequest === 'object' &&
+        localPlot.harvesterStatus && String(localPlot.harvesterStatus).trim() !== '') {
+        localPlot.harvesterRequest.status = String(localPlot.harvesterStatus).trim();
+    }
+    delete localPlot.harvesterStatus; // ฟิลด์ชั่วคราว ไม่ต้องเก็บบน plot
     
     // Format quota with zero padding helper if available
     if (localPlot.quota) {

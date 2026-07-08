@@ -51,6 +51,20 @@ function jsonOut_(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ขยายจำนวนคอลัมน์ + เติมหัวตารางที่ยังไม่มี (ใช้เวลาเพิ่มคอลัมน์ใหม่ให้ชีตเดิมที่มีอยู่แล้ว)
+// เติมเฉพาะเซลล์หัวที่ "ว่าง" เท่านั้น ไม่ทับหัวเดิม -> ปลอดภัย/idempotent
+function ensureHeaders_(sheet, headers) {
+  if (!sheet || !headers || !headers.length) return;
+  var maxCols = sheet.getMaxColumns();
+  if (maxCols < headers.length) sheet.insertColumnsAfter(maxCols, headers.length - maxCols);
+  var current = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  for (var c = 0; c < headers.length; c++) {
+    if (headers[c] && String(current[c] || '').trim() === '') {
+      sheet.getRange(1, c + 1).setValue(headers[c]);
+    }
+  }
+}
+
 function props_() {
   return PropertiesService.getScriptProperties();
 }
@@ -803,7 +817,8 @@ function processData(data, e) {
         "เหตุผลที่ปฏิเสธทุน", "รายการทุนที่ขอ", "สายพันธุ์อ้อย", "วันที่เริ่มปลูก",
         "ลิงก์รูปถ่ายแจ้งปลูก", "กิจกรรมที่ทำสำเร็จแล้ว", "สถานะอนุมัติ", "หมายเหตุพนักงาน", "รหัสพนักงานผู้ตอบ", "อัปเดตล่าสุด",
         "สถานะแผนที่ (Polygon)", "รหัสแปลงโรงงาน", "ข้อมูลขอบเขตแปลง (JSON)",
-        "เวลาบันทึกจริง (Offline)", "แก้ไขออฟไลน์", "วันเวลาเข้าตรวจแปลง"
+        "เวลาบันทึกจริง (Offline)", "แก้ไขออฟไลน์", "วันเวลาเข้าตรวจแปลง",
+        "คำขอคิวรถตัด (JSON)", "สถานะคิวรถตัด"
       ];
 
       if (action === "DELETE") {
@@ -854,7 +869,9 @@ function processData(data, e) {
         plot.polygon && plot.polygon.length > 0 ? JSON.stringify(plot.polygon) : "[]",
         plot.offlineCreated || "-",
         plot.isOffline ? "ใช่" : "ไม่ใช่",
-        plot.staffVisitDate || "-"
+        plot.staffVisitDate || "-",
+        plot.harvesterRequest ? JSON.stringify(plot.harvesterRequest) : "",
+        plot.harvesterRequest ? (plot.harvesterRequest.status || "") : ""
       ];
 
     } else if (type === "SUPPORT") {
@@ -1068,6 +1085,7 @@ function processData(data, e) {
     }
 
     if (type === "REGISTRATION") {
+      ensureHeaders_(sheet, headers); // เผื่อชีตเดิมยังไม่มีคอลัมน์คิวรถตัด 2 คอลัมน์ใหม่
       var sheetData = sheet.getDataRange().getValues();
       var rowIndex = -1;
       for (var i = 1; i < sheetData.length; i++) {
@@ -1094,6 +1112,8 @@ function processData(data, e) {
           rowValues[18] = (existingRow[18] !== "" && existingRow[18] !== undefined) ? existingRow[18] : rowValues[18]; // staffId
           rowValues[20] = (existingRow[20] !== "" && existingRow[20] !== undefined) ? existingRow[20] : rowValues[20]; // polygonStatus
           rowValues[21] = (existingRow[21] !== "" && existingRow[21] !== undefined) ? existingRow[21] : rowValues[21]; // factoryPlotCode
+          // สถานะคิวรถตัด (idx 27) เป็นของเจ้าหน้าที่ -> ชาวไร่อัปเดตไม่ทับ (แต่คอลัมน์คำขอ JSON idx 26 ชาวไร่แก้ได้)
+          rowValues[27] = (existingRow[27] !== "" && existingRow[27] !== undefined) ? existingRow[27] : rowValues[27]; // harvesterStatus
         }
 
         sheet.getRange(rowIndex, 1, 1, rowValues.length).setValues([rowValues]);
