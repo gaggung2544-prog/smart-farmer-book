@@ -7,6 +7,7 @@ scratch/
 *.ps1
 out.txt
 task.md
+.claude/
 
 # ---- ขยะระบบ ----
 .DS_Store

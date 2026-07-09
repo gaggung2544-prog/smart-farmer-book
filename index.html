@@ -3089,8 +3089,9 @@
                 <h3 style="margin: 0; font-size: 16px; font-family: 'Prompt', sans-serif; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px;">📖 คู่มือการใช้งาน Smart Farmer Book</h3>
                 <button type="button" id="btn-close-manual-modal" style="background: none; border: none; color: white; font-size: 24px; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;">&times;</button>
             </div>
-            <div id="user-manual-container" style="flex: 1; width: 100%; height: 100%; -webkit-overflow-scrolling: touch; overflow: hidden;">
-                <!-- Iframe will be loaded dynamically to prevent CORS warnings on file:// protocol -->
+            <div id="user-manual-container" style="flex: 1; width: 100%; min-height: 0; -webkit-overflow-scrolling: touch; overflow-y: auto; overflow-x: hidden;">
+                <!-- Iframe loaded dynamically. Container is the scroll region (iOS Safari cannot scroll iframes internally),
+                     and the iframe height is set to its content height after load so the whole manual is reachable on mobile. -->
             </div>
         </div>
     </div>
@@ -3102,6 +3103,30 @@
             const closeBtn = document.getElementById('btn-close-manual-modal');
             const modal = document.getElementById('user-manual-modal');
             const container = document.getElementById('user-manual-container');
+
+            // Size the manual iframe to its own content height so the whole manual can be
+            // scrolled inside the modal. iOS Safari cannot scroll an iframe internally, so the
+            // modal container (overflow-y:auto) does the scrolling on a full-height iframe.
+            function resizeManualIframe() {
+                const frame = document.getElementById('user-manual-iframe');
+                if (!frame) return;
+                try {
+                    const d = frame.contentDocument || frame.contentWindow.document;
+                    const h = Math.max(
+                        d.documentElement ? d.documentElement.scrollHeight : 0,
+                        d.body ? d.body.scrollHeight : 0
+                    );
+                    if (h > 0) frame.style.height = h + 'px';
+                } catch (e) {
+                    // Cross-origin (e.g. file://) — keep the fallback height; container scroll still applies.
+                    frame.style.height = '100%';
+                }
+            }
+            // Re-measure on orientation change / viewport resize while the manual is open.
+            window.addEventListener('resize', () => {
+                if (modal && !modal.classList.contains('d-none')) resizeManualIframe();
+            });
+            window.addEventListener('orientationchange', () => setTimeout(resizeManualIframe, 250));
 
             if (openBtn && modal && container) {
                 openBtn.addEventListener('click', (e) => {
@@ -3115,50 +3140,61 @@
                     if (!iframe) {
                         iframe = document.createElement('iframe');
                         iframe.id = 'user-manual-iframe';
+                        iframe.setAttribute('scrolling', 'no'); // the container scrolls, not the iframe
                         iframe.style.width = '100%';
-                        iframe.style.height = '100%';
+                        iframe.style.height = '100%'; // fallback until sized to content in onload
                         iframe.style.border = 'none';
-                        
+                        iframe.style.display = 'block';
+
                         iframe.onload = function() {
                             try {
                                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                                if (!iframeDoc) return;
-                                
-                                // Hide header inside the iframe since we are already in the app
-                                const header = iframeDoc.querySelector('header');
-                                if (header) {
-                                    header.style.display = 'none';
-                                }
-                                
-                                // Hide sidebar inside the iframe modal
-                                const aside = iframeDoc.querySelector('aside');
-                                if (aside) {
-                                    aside.style.display = 'none';
-                                }
-                                
-                                // Set layout of container to full width
-                                const containerEl = iframeDoc.querySelector('.container');
-                                if (containerEl) {
-                                    containerEl.style.gridTemplateColumns = '1fr';
-                                    containerEl.style.padding = '10px';
-                                    containerEl.style.gap = '0';
-                                }
-                                
-                                // Reduce padding of main content inside the modal for mobile
-                                const main = iframeDoc.querySelector('main');
-                                if (main) {
-                                    main.style.padding = '15px';
-                                    main.style.boxShadow = 'none';
-                                    main.style.border = 'none';
+                                if (iframeDoc) {
+                                    // Hide header inside the iframe since we are already in the app
+                                    const header = iframeDoc.querySelector('header');
+                                    if (header) {
+                                        header.style.display = 'none';
+                                    }
+
+                                    // Hide sidebar inside the iframe modal
+                                    const aside = iframeDoc.querySelector('aside');
+                                    if (aside) {
+                                        aside.style.display = 'none';
+                                    }
+
+                                    // Set layout of container to full width
+                                    const containerEl = iframeDoc.querySelector('.container');
+                                    if (containerEl) {
+                                        containerEl.style.gridTemplateColumns = '1fr';
+                                        containerEl.style.padding = '10px';
+                                        containerEl.style.gap = '0';
+                                    }
+
+                                    // Reduce padding of main content inside the modal for mobile
+                                    const main = iframeDoc.querySelector('main');
+                                    if (main) {
+                                        main.style.padding = '15px';
+                                        main.style.boxShadow = 'none';
+                                        main.style.border = 'none';
+                                    }
                                 }
                             } catch (e) {
                                 // Silent catch for local file protocol CORS restrictions as styling is also handled self-sufficiently inside user_manual.html
                                 console.log('Local iframe styling handled via internal script (CORS fallback).');
                             }
+
+                            // Grow the iframe to its content height so the WHOLE manual is reachable
+                            // by scrolling the modal on mobile. Re-measure after fonts/images settle.
+                            resizeManualIframe();
+                            setTimeout(resizeManualIframe, 300);
+                            setTimeout(resizeManualIframe, 1200);
                         };
-                        
+
                         iframe.src = 'user_manual.html';
                         container.appendChild(iframe);
+                    } else {
+                        // Reused iframe: re-measure in case the viewport/orientation changed while closed.
+                        setTimeout(resizeManualIframe, 50);
                     }
                 });
             }
