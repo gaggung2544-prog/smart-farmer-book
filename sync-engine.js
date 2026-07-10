@@ -10,8 +10,8 @@ const SmartFarmerDB = {
     
     init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open('SmartFarmerDB', 3);
-            
+            const request = indexedDB.open('SmartFarmerDB', 4);
+
             request.onupgradeneeded = event => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains('plots')) {
@@ -31,6 +31,10 @@ const SmartFarmerDB = {
                 }
                 if (!db.objectStoreNames.contains('chat_messages')) {
                     db.createObjectStore('chat_messages', { keyPath: 'id' });
+                }
+                // D1: สโตร์เก็บรูปเป็น Blob แยกจากเรคคอร์ด (ลด bloat/quota + เป็น seam สำหรับ Supabase Storage)
+                if (!db.objectStoreNames.contains('photos')) {
+                    db.createObjectStore('photos', { keyPath: 'id' });
                 }
             };
             
@@ -223,6 +227,160 @@ function parseDate(dateStr) {
     return isNaN(parsed) ? 0 : parsed;
 }
 
+// ==============================================================================
+// D2 · เขียน localStorage แบบปลอดภัย — กัน QuotaExceededError โยน error กลางมือ handler
+// เดิมหลายจุดเรียก localStorage.setItem ตรง ๆ; ถ้า quota เต็ม (จากรูป base64 / บล็อบ
+// หลักทรัพย์-หนี้สินที่โตไม่จำกัด) จะ throw -> login/บันทึกโปรไฟล์พังเงียบหรือค้าง.
+// วิธี: ลองเขียน; ถ้าเต็ม เคลียร์ log ที่ทิ้งได้ก่อนแล้วลองใหม่ 1 ครั้ง; คืน true/false ให้ผู้เรียก
+// ตัดสินใจ fallback ต่อ (เช่น บันทึกโปรไฟล์แบบไม่มีรูป). นิยามไว้ในไฟล์ที่โหลดก่อน app.js
+// และผูกกับ window เพื่อให้ทั้ง sync-engine.js และ app.js ใช้ตัวเดียวกัน
+// ==============================================================================
+function safeSetLocal(key, value) {
+    try {
+        localStorage.setItem(key, value);
+        return true;
+    } catch (e) {
+        // พยายามกู้พื้นที่: ทิ้ง error log (A1) ที่ไม่สำคัญต่อผู้ใช้ แล้วลองใหม่
+        try { localStorage.removeItem('smart_farmer_error_log'); } catch (e2) {}
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (e3) {
+            console.error('[safeSetLocal] quota exceeded for key:', key, e3);
+            if (typeof showToast === 'function') {
+                showToast('⚠️ พื้นที่จัดเก็บในเครื่องเต็ม บันทึกบางส่วนไม่สำเร็จ — ลองลบรูป/ข้อมูลเก่าออกบ้าง', 'warning');
+            }
+            return false;
+        }
+    }
+}
+if (typeof window !== 'undefined') window.safeSetLocal = safeSetLocal;
+
+// ==============================================================================
+// D1 · PHOTO BLOB STORE — เก็บรูปเป็น Blob (ไม่ใช่ base64) ในสโตร์ 'photos'
+// ทำไม: base64 ใหญ่กว่า Blob ~33% และถ้าฝังในเรคคอร์ด/localStorage จะบวม quota + ถ่วงทุกครั้งที่เขียน.
+// อีกทั้ง Supabase Storage รับ Blob/File โดยตรง -> ชั้นนี้เป็น "seam" สำหรับการย้ายในอนาคต
+// (ตอน cutover: แทนที่จะแปลง Blob->base64 ยัด payload เดิม ก็อัป Blob ขึ้น Storage แทน)
+// ==============================================================================
+
+// base64 data URL -> Blob (สำหรับเก็บลงสโตร์ / อัป Storage)
+function dataUrlToBlob(dataUrl) {
+    if (!dataUrl || typeof dataUrl !== 'string' || dataUrl.indexOf('data:') !== 0) return null;
+    try {
+        const parts = dataUrl.split(',');
+        const mime = (parts[0].match(/data:([^;]+)/) || [null, 'image/jpeg'])[1];
+        const bin = atob(parts[1]);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: mime });
+    } catch (e) {
+        console.warn('[Photo] dataUrlToBlob failed:', e);
+        return null;
+    }
+}
+
+// Blob -> base64 data URL (rehydration: ใช้ตอน sync ส่งขึ้น backend เดิม หรือแสดงผล)
+function blobToDataUrl(blob) {
+    return new Promise((resolve) => {
+        if (!blob) return resolve('');
+        const r = new FileReader();
+        r.onload = () => resolve(r.result || '');
+        r.onerror = () => resolve('');
+        r.readAsDataURL(blob);
+    });
+}
+
+async function savePhotoBlob(id, blob) {
+    if (!id || !blob) return false;
+    try { await SmartFarmerDB.put('photos', { id: id, blob: blob }); return true; }
+    catch (e) { console.warn('[Photo] savePhotoBlob failed:', id, e); return false; }
+}
+async function getPhotoBlob(id) {
+    if (!id) return null;
+    try { const rec = await SmartFarmerDB.get('photos', id); return rec ? rec.blob : null; }
+    catch (e) { return null; }
+}
+async function deletePhotoBlob(id) {
+    if (!id) return;
+    try { await SmartFarmerDB.delete('photos', id); } catch (e) {}
+}
+// rehydration helper — คืน base64 data URL จาก Blob store (สำหรับ sync payload เดิม / Supabase upload seam)
+async function getPhotoBase64(id) {
+    const blob = await getPhotoBlob(id);
+    return blob ? await blobToDataUrl(blob) : '';
+}
+
+// แสดงรูปจาก Blob store ลง <img> โดยจัดการ object URL ให้ (revoke ตัวเก่ากัน leak); fallback = base64 เดิม
+async function setImgFromPhoto(imgEl, photoId, legacyBase64) {
+    if (!imgEl) return;
+    if (imgEl.dataset && imgEl.dataset.objUrl) {
+        try { URL.revokeObjectURL(imgEl.dataset.objUrl); } catch (e) {}
+        imgEl.dataset.objUrl = '';
+    }
+    if (photoId) {
+        const blob = await getPhotoBlob(photoId);
+        if (blob) {
+            const u = URL.createObjectURL(blob);
+            if (imgEl.dataset) imgEl.dataset.objUrl = u;
+            imgEl.src = u;
+            return;
+        }
+    }
+    imgEl.src = legacyBase64 || '';
+}
+
+// รูปโปรไฟล์: ย้าย base64 ที่ฝังใน localStorage (smart_farmer_profile.photo) -> Blob store (id 'profile')
+// เก็บ data URL ไว้ใน window.__sfProfilePhotoUrl สำหรับจุดแสดงผลที่ render แบบ sync
+// idempotent: รันซ้ำปลอดภัย (ย้ายแล้ว photo='' -> โหลด Blob กลับเข้าแคชหน่วยความจำเท่านั้น)
+async function migrateProfilePhotoToBlob() {
+    try {
+        let profile = {};
+        try { profile = JSON.parse(localStorage.getItem('smart_farmer_profile') || '{}'); } catch (e) { return; }
+        if (profile && typeof profile.photo === 'string' && profile.photo.indexOf('data:') === 0) {
+            const blob = dataUrlToBlob(profile.photo);
+            if (blob && await savePhotoBlob('profile', blob)) {
+                window.__sfProfilePhotoUrl = profile.photo; // แคชสำหรับแสดงผลรอบนี้
+                profile.photo = '';
+                safeSetLocal('smart_farmer_profile', JSON.stringify(profile)); // ล้าง base64 ออกจาก localStorage
+            }
+        } else if (profile && !profile.photo) {
+            const b64 = await getPhotoBase64('profile');
+            if (b64) window.__sfProfilePhotoUrl = b64;
+        }
+    } catch (e) { console.warn('[Photo] migrateProfilePhotoToBlob failed:', e); }
+}
+
+// D1 · REHYDRATION HOOK — เรคคอร์ดเก็บแค่ <field>Id (Blob store); ตอน "ส่ง sync" เท่านั้นที่แปลง
+// Blob->base64 ยัดกลับเข้า payload เพื่อคง Drive archive ของ backend เดิม (gs saveBase64ImageToDrive).
+// ⭐ นี่คือ "seam" สำหรับ Supabase: ตอน cutover เปลี่ยนบล็อกนี้จาก "ยัด base64" เป็น "อัป Blob ขึ้น Storage
+//    แล้วใส่ path/URL แทน" — โค้ดที่อื่นไม่ต้องแตะ
+const SF_PHOTO_SYNC_FIELDS = [
+    { idField: 'estPhotoId', field: 'estPhoto' },
+    { idField: 'visitConfirmPhotoId', field: 'visitConfirmPhoto' } // เผื่อ slice ถัดไป (ยังไม่ผูก UI)
+];
+async function rehydratePhotosForSync(dataObj) {
+    if (!dataObj || typeof dataObj !== 'object') return dataObj;
+    for (const m of SF_PHOTO_SYNC_FIELDS) {
+        if (dataObj[m.idField] && !dataObj[m.field]) {
+            const b64 = await getPhotoBase64(dataObj[m.idField]);
+            if (b64) dataObj[m.field] = b64;
+        }
+    }
+    return dataObj;
+}
+
+if (typeof window !== 'undefined') {
+    window.dataUrlToBlob = dataUrlToBlob;
+    window.blobToDataUrl = blobToDataUrl;
+    window.savePhotoBlob = savePhotoBlob;
+    window.getPhotoBlob = getPhotoBlob;
+    window.getPhotoBase64 = getPhotoBase64;
+    window.deletePhotoBlob = deletePhotoBlob;
+    window.setImgFromPhoto = setImgFromPhoto;
+    window.migrateProfilePhotoToBlob = migrateProfilePhotoToBlob;
+    window.rehydratePhotosForSync = rehydratePhotosForSync;
+}
+
 // เพิ่มหรืออัปเดตข้อมูลในคิว (ป้องกันซ้ำด้วย plotId+type)
 async function queueDataChange(action, data, type) {
     const queue = await getDataQueue();
@@ -317,13 +475,17 @@ async function autoSyncPendingData(quiet = true) {
                 offlineCreated: entry.data.offlineCreated || entry.addedAt,
                 isOffline: true
             };
-            
+
+            // D1: rehydrate รูปจาก Blob store -> base64 ในเพย์โหลดชั่วคราวก่อนส่ง (คิวยังเก็บแค่ id = เล็ก)
+            // คง Drive archive เดิมไว้; onlinePayload เป็นสำเนา top-level ของ entry.data จึงไม่กระทบคิว
+            await rehydratePhotosForSync(onlinePayload);
+
             const payload = {
                 action: entry.action,
                 type: entry.type,
                 data: onlinePayload
             };
-            
+
             const success = await sendToSheetReliable(url, payload);
             if (success) {
                 successCount++;
@@ -384,6 +546,8 @@ function scheduleSyncWithBackoff() {
         if (typeof showToast === 'function') {
             showToast("⚠️ ซิงก์ล้มเหลวหลายครั้ง แอปจะพักการลองซิงก์ชั่วคราวและซิงก์ใหม่เมื่อเน็ตดีขึ้น", "warning");
         }
+        // A2: แจ้งเตือน backend ว่า push ล้มครบ backoff (ข้อมูลค้างส่งในเครื่อง)
+        reportSyncHealth('push_giveup', 'max retries reached; pending data stuck');
         return;
     }
     
@@ -538,6 +702,52 @@ function looksLikeHtmlOrLogin(text) {
            t.includes('authorization required');
 }
 
+// ==============================================================================
+// A2 · OBSERVABILITY — Sync-health beacon (best-effort, GET, throttled)
+// ส่งสรุป "sync ล้มเหลว" ไป backend เพื่อให้ทีมมองเห็นปัญหาในสนาม (ก่อนหน้านี้ fail เงียบ 100%)
+// ⚠️ ส่งเป็น GET querystring โดยเจตนา: backend เวอร์ชันเก่าที่ยังไม่รู้จัก action=syncLog จะตอบ
+//    "API is running" เฉย ๆ (doGet ไม่มี branch + ไม่มี param 'p' -> ไม่เขียนชีต) => ปลอดภัย
+//    แม้ยังไม่ได้ deploy handler ใหม่. (ห้ามส่งเป็น POST เพราะ processData จะ fallthrough
+//     action ที่ไม่รู้จักไปเป็น REGISTRATION write = เขียนแถวขยะลงชีตแปลงอ้อย)
+// เก็บลง error log ในเครื่อง (A1) เสมอ แม้ beacon จะส่งไม่ถึง
+// ==============================================================================
+let __lastSyncBeaconAt = 0;
+function reportSyncHealth(event, detail) {
+    const detailStr = (detail === undefined || detail === null) ? '' : String(detail.message || detail);
+    // 1) เก็บ local ก่อนเสมอ (เห็นได้ใน DevTools แม้ออฟไลน์)
+    try {
+        if (typeof window !== 'undefined' && typeof window.sfRecordError === 'function') {
+            window.sfRecordError({ kind: 'sync', event: event, detail: detailStr.slice(0, 300) });
+        }
+    } catch (e) {}
+    // 2) beacon แบบ throttle: อย่างมาก 1 ครั้ง/60 วินาที กัน network storm ตอนเน็ตพัง
+    try {
+        const now = Date.now();
+        if (now - __lastSyncBeaconAt < 60000) return;
+        const base = getBackendUrl();
+        if (!base || !navigator.onLine) return;
+        __lastSyncBeaconAt = now; // นับ throttle เฉพาะตอนที่ส่งจริง (ออฟไลน์ไม่กินโควตา)
+        let role = '', quota = '';
+        try { role = localStorage.getItem('smart_farmer_staff_id') ? 'STAFF' : 'FARMER'; } catch (e) {}
+        try { quota = localStorage.getItem('smart_farmer_staff_id') || localStorage.getItem('smart_farmer_quota') || ''; } catch (e) {}
+        const v = (typeof window !== 'undefined' && window.SF_BUILD) ? window.SF_BUILD : '';
+        const params = [
+            'action=syncLog',
+            'event=' + encodeURIComponent(event || ''),
+            'detail=' + encodeURIComponent(detailStr.slice(0, 400)),
+            'role=' + encodeURIComponent(role),
+            'quota=' + encodeURIComponent(quota),
+            'v=' + encodeURIComponent(v),
+            'ts=' + encodeURIComponent(new Date().toISOString()),
+            'ua=' + encodeURIComponent((navigator.userAgent || '').slice(0, 180))
+        ].join('&');
+        const sep = base.includes('?') ? '&' : '?';
+        // fire-and-forget: ไม่อ่าน response, กลืน error ทุกกรณี, ไม่เข้า sync queue
+        fetchWithTimeout(base + sep + params, { method: 'GET' }, 8000).catch(function () {});
+    } catch (e) {}
+}
+if (typeof window !== 'undefined') window.reportSyncHealth = reportSyncHealth;
+
 async function sendToSheetReliable(url, payload) {
     // แนบ token เข้าไปใน payload (backend อ่านจาก data.token) — ไม่มี token = ส่งเหมือนเดิม
     const token = getAuthToken();
@@ -683,6 +893,8 @@ async function syncUserDatabase() {
         }
     } catch (e) {
         console.warn("[User Sync] Failed to sync user database, using offline cached version:", e);
+        // A2: การซิงก์บัญชีผู้ใช้ล้มเหลวเงียบ (swallow) — บันทึกไว้ให้ทีมเห็น (beacon throttle ร่วมกัน)
+        reportSyncHealth('user_sync_error', e);
     }
 }
 
@@ -789,6 +1001,8 @@ async function pullCloudData(isSilent = true) {
         }
     } catch (e) {
         console.error('[Cloud Sync] Sync failed:', e);
+        // A2: pull ล้มเหลว — สำคัญเป็นพิเศษเมื่อ isSilent (auto-pull ทุก 120s ไม่ขึ้น UI เลย)
+        reportSyncHealth('pull_error', e);
         if (statusText && !isSilent) {
             statusText.style.color = 'var(--brand-red)';
             statusText.innerText = '❌ ซิงก์ดึงข้อมูลล้มเหลว: ' + e.message;
@@ -843,8 +1057,8 @@ function mergeCloudAssetDebt(records) {
         }
     });
     if (changed) {
-        localStorage.setItem('smart_farmer_assets_db', JSON.stringify(assetsDB));
-        localStorage.setItem('smart_farmer_debts_db', JSON.stringify(debtsDB));
+        safeSetLocal('smart_farmer_assets_db', JSON.stringify(assetsDB)); // D2: กัน quota เต็มจากบล็อบที่โต
+        safeSetLocal('smart_farmer_debts_db', JSON.stringify(debtsDB));
         if (typeof loadAssetDebtDB === 'function') loadAssetDebtDB();       // รีเฟรช global ใน app.js
         if (typeof renderAssetDebtHub === 'function') renderAssetDebtHub();
         if (typeof renderStaffAssetDebtRequests === 'function') renderStaffAssetDebtRequests();

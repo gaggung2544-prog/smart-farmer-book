@@ -9,6 +9,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Smart Farmer Book | สมุดดิจิทัลชาวไร่</title>
 
+    <!-- ==========================================================================
+         OBSERVABILITY (Phase A1) — ดักจับ error / promise-rejection ตั้งแต่ก่อนโหลด
+         สคริปต์อื่น เพื่อให้ทีมมองเห็นปัญหาในสนาม (ก่อนหน้านี้ไม่มี window.onerror เลย
+         exception เงียบหายหมด). เก็บลง ring buffer ใน localStorage แบบ "capped + guarded"
+         (ไม่เกิน 30 รายการ, ตัดครึ่งถ้า quota เต็ม) จึงไม่เพิ่มความเสี่ยง quota อย่างมีนัยยะ.
+         วางไว้บนสุดของ head โดยเจตนา: จับได้ทั้ง error ของสคริปต์และ resource ที่โหลดไม่ขึ้น.
+         SF_BUILD ใช้แนบไปกับ sync-beacon (A2) เพื่อรู้ว่า client อยู่เวอร์ชันไหน — bump คู่กับ sw.js
+         ========================================================================== -->
+    <script>
+    (function () {
+        window.SF_BUILD = 'v84';
+        var KEY = 'smart_farmer_error_log';
+        var MAX = 30;
+        window.__sfErrors = [];
+        // โหลด log เดิมจากรอบก่อน (ให้สะสมข้ามการรีเฟรช)
+        try {
+            var prev = JSON.parse(localStorage.getItem(KEY) || '[]');
+            if (Array.isArray(prev)) window.__sfErrors = prev.slice(-MAX);
+        } catch (e) {}
+        function persist() {
+            try {
+                localStorage.setItem(KEY, JSON.stringify(window.__sfErrors.slice(-MAX)));
+            } catch (e) {
+                // quota เต็ม: ตัดครึ่งแล้วลองใหม่ครั้งเดียว — logging ต้องไม่ทำแอปพัง
+                try {
+                    window.__sfErrors = window.__sfErrors.slice(-Math.floor(MAX / 2));
+                    localStorage.setItem(KEY, JSON.stringify(window.__sfErrors));
+                } catch (e2) {}
+            }
+        }
+        function record(entry) {
+            try {
+                entry.ts = new Date().toISOString();
+                entry.screen = window.__currentScreenId || '';
+                window.__sfErrors.push(entry);
+                if (window.__sfErrors.length > MAX) window.__sfErrors = window.__sfErrors.slice(-MAX);
+                persist();
+            } catch (e) {}
+        }
+        window.sfRecordError = record;
+        window.sfGetErrorLog = function () {
+            try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+            catch (e) { return (window.__sfErrors || []).slice(); }
+        };
+        window.sfClearErrorLog = function () {
+            window.__sfErrors = [];
+            try { localStorage.removeItem(KEY); } catch (e) {}
+        };
+        // capture=true เพื่อให้จับ resource-load error (script/img/css) ที่ไม่ bubble ด้วย
+        window.addEventListener('error', function (ev) {
+            if (ev && ev.target && (ev.target.src || ev.target.href) && !ev.message) {
+                record({ kind: 'resource', src: String(ev.target.src || ev.target.href).slice(0, 300), tag: (ev.target.tagName || '').toLowerCase() });
+                return;
+            }
+            record({
+                kind: 'error',
+                msg: String((ev && ev.message) || 'unknown').slice(0, 300),
+                src: String((ev && ev.filename) || '').slice(0, 200),
+                line: (ev && ev.lineno) || 0,
+                stack: (ev && ev.error && ev.error.stack) ? String(ev.error.stack).slice(0, 500) : ''
+            });
+        }, true);
+        window.addEventListener('unhandledrejection', function (ev) {
+            var r = ev && ev.reason;
+            record({
+                kind: 'promise',
+                msg: String((r && (r.message || r)) || 'unhandledrejection').slice(0, 300),
+                stack: (r && r.stack) ? String(r.stack).slice(0, 500) : ''
+            });
+        });
+    })();
+    </script>
+
     <!-- PWA Settings -->
     <meta name="theme-color" content="#0F2C59">
     <!-- ลิงก์ manifest แบบ static เพื่อให้เบราว์เซอร์ประเมิน installability ได้เชื่อถือ (app.js ยัง inject ซ้ำเป็น fallback สำหรับ file://) -->

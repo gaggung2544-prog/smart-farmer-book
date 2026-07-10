@@ -15110,7 +15110,12 @@ function savePestReports() {
 async function initDB() {
     // 1. Initialize IndexedDB
     await SmartFarmerDB.init();
-    
+
+    // D1: ย้ายรูปโปรไฟล์ base64 ออกจาก localStorage -> Blob store (idempotent, ทำครั้งเดียวต่อเครื่อง)
+    if (typeof migrateProfilePhotoToBlob === 'function') {
+        try { await migrateProfilePhotoToBlob(); } catch (e) {}
+    }
+
     // 2. Fetch plots from IndexedDB
     plots = await SmartFarmerDB.getAll('plots');
     
@@ -15151,6 +15156,7 @@ async function initDB() {
         if (plot.harvestEquipment === undefined) plot.harvestEquipment = 'คนตัด';
         if (plot.regPhoto === undefined) plot.regPhoto = '';
         if (plot.estPhoto === undefined) plot.estPhoto = '';
+        if (plot.estPhotoId === undefined) plot.estPhotoId = ''; // D1: อ้าง Blob ในสโตร์ 'photos'
         if (plot.hasIrrigation === undefined) plot.hasIrrigation = true;
         if (plot.irrigationType === undefined) plot.irrigationType = 'น้ำหยด';
         if (plot.supportRejectReason === undefined) plot.supportRejectReason = '';
@@ -15266,7 +15272,7 @@ function openDataPreview() {
                 }
                 
                 // บันทึกค่า
-                localStorage.setItem('smart_farmer_sheet_url', val);
+                safeSetLocal('smart_farmer_sheet_url', val); // D2
                 
                 // ซิงก์ค่าไปยัง input หน้ารายการตั้งค่าหลักด้วย
                 const mainUrlInput = document.getElementById('sheet-api-url');
@@ -16664,7 +16670,7 @@ function renderFarmerGreeting() {
     try {
         const p = JSON.parse(localStorage.getItem('smart_farmer_profile') || '{}');
         name = (p.fullname || '').trim();
-        photo = p.photo || '';
+        photo = p.photo || (window.__sfProfilePhotoUrl || ''); // D1: รูปถูกย้ายไป Blob store -> ใช้แคชในหน่วยความจำ
     } catch (e) {}
     const displayName = name || ('โควตา ' + quota);
 
@@ -17558,8 +17564,13 @@ function updateEstimatorValues() {
     const estPreviewImg = document.getElementById('est-photo-preview');
     const estPhotoInput = document.getElementById('est-photo-input');
     
-    if (plot.estPhoto) {
-        estPreviewImg.src = plot.estPhoto;
+    if (plot.estPhotoId || plot.estPhoto) {
+        // D1: โหลดจาก Blob store (fallback base64 เดิมสำหรับเรคคอร์ดเก่า)
+        if (typeof setImgFromPhoto === 'function') {
+            setImgFromPhoto(estPreviewImg, plot.estPhotoId, plot.estPhoto);
+        } else {
+            estPreviewImg.src = plot.estPhoto || '';
+        }
         estPreviewContainer.classList.remove('d-none');
     } else {
         estPreviewImg.src = "";
@@ -18166,7 +18177,7 @@ async function attemptDobLogin(role, id, dob) {
 
 function proceedPostOTPLogin() {
     if (tempLoginRole === 'FARMER') {
-        localStorage.setItem('smart_farmer_quota', tempQuotaOrStaffId);
+        safeSetLocal('smart_farmer_quota', tempQuotaOrStaffId); // D2: critical-path — ห้าม throw จน login ค้าง
         localStorage.removeItem('smart_farmer_staff_id');
         
         document.getElementById('login-overlay').classList.add('d-none');
@@ -18202,9 +18213,9 @@ function proceedPostOTPLogin() {
             checkOnboarding();
         }
     } else {
-        localStorage.setItem('smart_farmer_staff_id', tempQuotaOrStaffId);
+        safeSetLocal('smart_farmer_staff_id', tempQuotaOrStaffId); // D2: critical-path — ห้าม throw จน login ค้าง
         localStorage.removeItem('smart_farmer_quota');
-        
+
         document.getElementById('login-overlay').classList.add('d-none');
         checkQuotaLogin();
         checkStaffLoginStatus();
@@ -18255,8 +18266,9 @@ function refreshUserHUD() {
         try {
             const profile = JSON.parse(profileStr);
             if (hudImgEl) {
-                if (profile.photo) {
-                    hudImgEl.src = profile.photo;
+                const ph = profile.photo || (window.__sfProfilePhotoUrl || ''); // D1: fallback แคชรูปจาก Blob store
+                if (ph) {
+                    hudImgEl.src = ph;
                     hudImgEl.style.display = 'inline-block';
                 } else {
                     hudImgEl.style.display = 'none';
@@ -18603,7 +18615,12 @@ function setupEventListeners() {
                 phone: tempLoginPhone
             };
             
-            localStorage.setItem('smart_farmer_profile', JSON.stringify(profileData));
+            // D2: โปรไฟล์มีรูป base64 -> เสี่ยง quota เต็ม. ถ้าเขียนไม่สำเร็จ ลองใหม่แบบไม่มีรูป
+            // เพื่อให้ยังล็อกอินต่อได้ (ไม่ค้าง) — รูปไม่จำเป็นต่อการเข้าใช้งาน
+            if (!safeSetLocal('smart_farmer_profile', JSON.stringify(profileData))) {
+                const slimProfile = { ...profileData, photo: '' };
+                safeSetLocal('smart_farmer_profile', JSON.stringify(slimProfile));
+            }
             document.getElementById('profile-wizard-overlay').classList.add('d-none');
             proceedPostOTPLogin();
         });
@@ -18746,7 +18763,7 @@ function setupEventListeners() {
         }
 
         const urlInput = document.getElementById('sheet-api-url').value.trim();
-        localStorage.setItem('smart_farmer_sheet_url', urlInput);
+        safeSetLocal('smart_farmer_sheet_url', urlInput); // D2
         
         // Save voice setting
         const voiceSelect = document.getElementById('voice-guide-select');
@@ -19186,16 +19203,26 @@ function setupEventListeners() {
         estPhotoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                compressImage(file, (base64) => {
+                compressImage(file, async (base64) => {
                     const plot = plots.find(p => p.id === currentPlotId);
                     if (plot) {
-                        plot.estPhoto = base64;
+                        // D1: เก็บรูปเป็น Blob ในสโตร์ 'photos' แทน base64 ในเรคคอร์ด (ลด bloat)
+                        // ถ้าเก็บ Blob ไม่สำเร็จ -> fallback เก็บ base64 เดิม (พฤติกรรมไม่ถดถอย)
+                        const photoId = 'est_' + plot.id;
+                        const blob = (typeof dataUrlToBlob === 'function') ? dataUrlToBlob(base64) : null;
+                        if (blob && typeof savePhotoBlob === 'function' && await savePhotoBlob(photoId, blob)) {
+                            plot.estPhotoId = photoId;
+                            plot.estPhoto = ''; // sync จะ rehydrate เป็น base64 เองเพื่อคง Drive archive
+                        } else {
+                            plot.estPhoto = base64;
+                            plot.estPhotoId = '';
+                        }
                         savePlot(plot);
-                        estPreviewImg.src = base64;
+                        estPreviewImg.src = base64; // preview จาก base64 ที่มีอยู่ในมือแล้ว
                         estPreviewContainer.classList.remove('d-none');
-                        
+
                         addSystemAuditLog('UPDATE', 'ESTIMATE', plot.id, `อัปโหลดรูปภาพการประเมินผลผลิต (แปลง: ${plot.name})`);
-                        
+
                         syncToGoogleSheet('UPDATE', plot, 'ESTIMATE');
                     }
                 });
@@ -19207,6 +19234,9 @@ function setupEventListeners() {
         btnRemoveEstPhoto.addEventListener('click', () => {
             const plot = plots.find(p => p.id === currentPlotId);
             if (plot) {
+                // D1: ลบทั้ง Blob ในสโตร์และ base64 เดิม
+                if (plot.estPhotoId && typeof deletePhotoBlob === 'function') deletePhotoBlob(plot.estPhotoId);
+                plot.estPhotoId = "";
                 plot.estPhoto = "";
                 savePlot(plot);
                 estPhotoInput.value = "";
@@ -19567,7 +19597,7 @@ function setupEventListeners() {
             if (validateStaffId(staffIdInput)) {
                 requestPasscode('🔓 ยืนยันสิทธิ์เจ้าหน้าที่', 'กรุณาระบุรหัสผ่านป้องกันเพื่อเข้าใช้โหมดเจ้าหน้าที่ส่งเสริม', (success) => {
                     if (success) {
-                        localStorage.setItem('smart_farmer_staff_id', staffIdInput);
+                        safeSetLocal('smart_farmer_staff_id', staffIdInput); // D2
                         document.getElementById('settings-modal').classList.add('d-none');
                         checkStaffLoginStatus();
                         updatePreviewFAB();
@@ -20937,7 +20967,7 @@ function verifyFaceIdentity() {
         syncToGoogleSheet('INSERT', identityData, 'IDENTITY');
         
         // Log in the user locally
-        localStorage.setItem('smart_farmer_quota', tempQuotaLoginVal);
+        safeSetLocal('smart_farmer_quota', tempQuotaLoginVal); // D2
         checkQuotaLogin();
         
         // Postponed to welcome screen start button click:
@@ -24114,8 +24144,9 @@ function loadAssetDebtDB() {
 // Save Database to localStorage
 function saveAssetDebtDB() {
     try {
-        localStorage.setItem('smart_farmer_assets_db', JSON.stringify(assetsDB));
-        localStorage.setItem('smart_farmer_debts_db', JSON.stringify(debtsDB));
+        // D2: บล็อบหลักทรัพย์/หนี้สินโตไม่จำกัด -> ใช้ safeSetLocal (กู้พื้นที่+แจ้งเตือนแทนการ throw เงียบ)
+        safeSetLocal('smart_farmer_assets_db', JSON.stringify(assetsDB));
+        safeSetLocal('smart_farmer_debts_db', JSON.stringify(debtsDB));
     } catch (e) {
         console.error("Error saving Asset/Debt DB:", e);
     }

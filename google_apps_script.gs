@@ -427,6 +427,12 @@ function doGet(e) {
     return getChatMessages(authC);
   }
 
+  // A2 · OBSERVABILITY — รับ sync-health beacon จาก client (GET, best-effort)
+  // client จะยิงเฉพาะตอน sync ล้มเหลว (push_giveup / pull_error / user_sync_error), throttle 1/60s/เครื่อง
+  if (e && e.parameter && e.parameter.action === "syncLog") {
+    return handleSyncLog_(e.parameter);
+  }
+
   // ถ้ามี parameter 'p' หมายความว่าเป็นการส่งข้อมูล (write ผ่าน GET fallback)
   if (e && e.parameter && e.parameter.p) {
     try {
@@ -440,11 +446,45 @@ function doGet(e) {
       var data = JSON.parse(decodedP);
       return processData(data, e);
     } catch (err) {
+      console.error('[doGet write] failed:', err); // A3: ให้ Stackdriver เห็น error พร้อม context
       return jsonOut_({ status: "error", message: "Invalid JSON in parameter: " + err.toString() });
     }
   }
 
   return jsonOut_({ status: "ok", message: "Smart Farmer Book API is running! (v4 - auth-ready)" });
+}
+
+// A2 · OBSERVABILITY — เก็บ sync-health beacon ลงชีต SYNC_LOG (best-effort, สร้างชีตให้ถ้ายังไม่มี)
+// ออกแบบให้ "ห้ามล้ม endpoint": error ทุกกรณีถูกกลืน + trim ตัวเองไม่ให้ชีตโตเกิน ~2000 แถว
+function handleSyncLog_(p) {
+  try {
+    var ss = getSS_();
+    var name = "SYNC_LOG";
+    var headers = ["เวลา (Server)", "เวลา (Client)", "เหตุการณ์", "บทบาท", "โควตา/รหัส", "รายละเอียด", "เวอร์ชัน", "อุปกรณ์ (UA)"];
+    var sheet = ss.getSheetByName(name);
+    if (!sheet) {
+      sheet = ss.insertSheet(name);
+      sheet.appendRow(headers);
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#fde2e2");
+    }
+    sheet.appendRow([
+      new Date().toLocaleString('th-TH'),
+      String(p.ts || '').slice(0, 40),
+      String(p.event || '').slice(0, 60),
+      String(p.role || '').slice(0, 20),
+      String(p.quota || '').slice(0, 40),
+      String(p.detail || '').slice(0, 500),
+      String(p.v || '').slice(0, 20),
+      String(p.ua || '').slice(0, 250)
+    ]);
+    // trim: เก็บ ~2000 แถวล่าสุด (บวก header) กันชีตบวมไม่จำกัด
+    var maxRows = 2000;
+    var n = sheet.getLastRow();
+    if (n > maxRows + 1) sheet.deleteRows(2, n - (maxRows + 1));
+  } catch (err) {
+    // best-effort เท่านั้น — logging ต้องไม่ทำให้ endpoint ล้ม
+  }
+  return jsonOut_({ status: "ok" });
 }
 
 function getAllPlots() {
@@ -727,6 +767,8 @@ function doPost(e) {
     var data = JSON.parse(jsonString);
     return processData(data, e);
   } catch (error) {
+    // A3: log พร้อม context (action + ตัวอย่าง payload) ให้ Stackdriver วินิจฉัยปัญหาสนามได้
+    try { console.error('[doPost] failed:', error, '| raw:', String(e && e.postData ? e.postData.contents : '').slice(0, 200)); } catch (le) {}
     return jsonOut_({ status: "error", message: error.toString() });
   }
 }
