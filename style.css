@@ -1,4 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
+
+/* D-2 · a11y: เคารพ prefers-reduced-motion — ลด/ปิด animation+transition ที่หนัก (ticker วิ่ง, scan line,
+   pulse ซ้อน, glow) สำหรับผู้ใช้ที่ตั้งค่า "ลดการเคลื่อนไหว" — สำคัญกับผู้สูงวัย 55+ ที่อาจเวียนหัว
+   ไม่กระทบผู้ใช้ทั่วไป (เข้าเงื่อนไขเฉพาะเมื่อ OS ตั้งค่าไว้) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 
 :root {
