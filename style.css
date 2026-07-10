@@ -12,6 +12,45 @@
   }
 }
 
+/* ============================================================================
+   D-5 · CANONICAL DESIGN TOKENS — แหล่งความจริงเดียว (ยึดจากโลโก้ agri-tech)
+   บทบาทสี: เขียว=action/เติบโต · navy=โครงสร้าง/แบรนด์ · azure=รอง · cyan=ข้อมูล/เทค · silver=neutral
+   ⚠️ ตั้งใจใช้ prefix --sf-* เพื่อ "ไม่ชน" token เดิม = additive ล้วน ยังไม่ผูกกับ component
+   (ผูกทีละตัวในขั้น D-5 ถัดไป โดย verify ด้วยภาพ) จึงยังไม่เปลี่ยนการเรนเดอร์ปัจจุบัน
+   ============================================================================ */
+:root {
+  /* raw จากโลโก้ */
+  --sf-leaf:#4E9E33; --sf-navy:#0F2C59; --sf-azure:#2563C9; --sf-cyan:#17A9CE; --sf-silver:#8A97A6;
+  /* semantic / บทบาท (component จะอ้างชุดนี้) */
+  --sf-accent:#4E9E33; --sf-accent-strong:#3C7C28; --sf-accent-tint:#6CC24A; --sf-accent-soft:#E7F3E2;
+  --sf-brand:#0F2C59; --sf-brand-2:#1C3F75; --sf-brand-soft:#E4E9F2;
+  --sf-secondary:#2563C9; --sf-secondary-soft:#E3ECFB;
+  --sf-data:#17A9CE; --sf-data-soft:#DFF3F9;
+  --sf-ground:#F2F6FB; --sf-surface:#FFFFFF; --sf-surface-2:#E9EFF6; --sf-sunken:#E2E9F2;
+  --sf-ink:#13233F; --sf-ink-2:#46566E; --sf-ink-3:#6B7A90;
+  --sf-line:#DBE3EC; --sf-line-2:#C7D0DA;
+  --sf-good:#4E9E33; --sf-good-bg:#E7F3E2; --sf-warn:#C1851B; --sf-warn-bg:#F8EED6;
+  --sf-danger:#DC4636; --sf-danger-bg:#FBE6E3; --sf-info:#17A9CE; --sf-info-bg:#DFF3F9;
+  --sf-r-sm:10px; --sf-r-md:16px; --sf-r-lg:20px;
+  --sf-shadow:0 1px 2px rgba(15,44,89,.06),0 6px 18px rgba(15,44,89,.07);
+  --sf-shadow-lg:0 2px 6px rgba(15,44,89,.07),0 16px 40px rgba(15,44,89,.12);
+  --sf-motion:.25s cubic-bezier(.4,0,.2,1); --sf-motion-fast:.15s cubic-bezier(.4,0,.2,1);
+}
+/* dark = โลก navy ของโลโก้ (เปิดใช้เมื่อ D-10 ใส่ theme toggle / prefers-color-scheme) */
+:root[data-theme="dark"] {
+  --sf-accent:#68C24A; --sf-accent-strong:#8AD86A; --sf-accent-tint:#68C24A; --sf-accent-soft:#16281A;
+  --sf-brand:#2B4A80; --sf-brand-2:#3A5C98; --sf-brand-soft:#16223A;
+  --sf-secondary:#4F8BE0; --sf-secondary-soft:#132A4A;
+  --sf-data:#3FC9E6; --sf-data-soft:#0E2B34;
+  --sf-ground:#0B1524; --sf-surface:#111D33; --sf-surface-2:#182740; --sf-sunken:#0C1626;
+  --sf-ink:#E6EDF6; --sf-ink-2:#A6B4C8; --sf-ink-3:#7688A0;
+  --sf-line:#243550; --sf-line-2:#2F425F;
+  --sf-good:#68C24A; --sf-good-bg:#16281A; --sf-warn:#D9A63F; --sf-warn-bg:#2A2210;
+  --sf-danger:#E6675A; --sf-danger-bg:#2C1512; --sf-info:#3FC9E6; --sf-info-bg:#0E2B34;
+  --sf-shadow:0 1px 2px rgba(0,0,0,.34),0 8px 22px rgba(0,0,0,.30);
+  --sf-shadow-lg:0 2px 6px rgba(0,0,0,.4),0 18px 44px rgba(0,0,0,.42);
+}
+
 
 :root {
     /* Color Tokens from Logo (One Role, One Color) */
