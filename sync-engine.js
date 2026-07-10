@@ -961,8 +961,9 @@ async function pullCloudData(isSilent = true) {
             await mergeCloudDataWithLocal(cloudPlots, cloudPests, deletedItems, isDeltaSync);
             mergeCloudAssetDebt(resJson.assetDebt); // F3: ผสานหลักทรัพย์/หนี้สิน
 
-            // บันทึกเวลาที่ดึงข้อมูลสำเร็จ เพื่อโชว์ "อัปเดตล่าสุดเมื่อ..." ให้ผู้ใช้
-            try { localStorage.setItem('smart_farmer_last_sync', String(Date.now())); } catch (e) {}
+            // บันทึกเวลาที่ดึงข้อมูลสำเร็จ + ล้าง marker ความล้มเหลว (F1) เพื่อโชว์ "อัปเดตล่าสุดเมื่อ..." ให้ผู้ใช้
+            safeSetLocal('smart_farmer_last_sync', String(Date.now()));
+            try { localStorage.removeItem('smart_farmer_last_sync_error'); } catch (e) {}
 
             if (statusText && !isSilent) {
                 statusText.style.color = 'var(--brand-green)';
@@ -1003,6 +1004,9 @@ async function pullCloudData(isSilent = true) {
         console.error('[Cloud Sync] Sync failed:', e);
         // A2: pull ล้มเหลว — สำคัญเป็นพิเศษเมื่อ isSilent (auto-pull ทุก 120s ไม่ขึ้น UI เลย)
         reportSyncHealth('pull_error', e);
+        // F1: บันทึก marker "ดึงล่าสุดล้มเหลว" + รีเฟรชตัวชี้วัดหน้าแรก เพื่อให้ auto-pull เงียบไม่ถูกซ่อน
+        try { localStorage.setItem('smart_farmer_last_sync_error', String(Date.now())); } catch (e2) {}
+        if (typeof renderLastSyncIndicator === 'function') renderLastSyncIndicator();
         if (statusText && !isSilent) {
             statusText.style.color = 'var(--brand-red)';
             statusText.innerText = '❌ ซิงก์ดึงข้อมูลล้มเหลว: ' + e.message;

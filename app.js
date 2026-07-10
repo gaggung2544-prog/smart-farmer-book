@@ -16303,6 +16303,17 @@ function renderLastSyncIndicator() {
     const el = document.getElementById('dash-last-sync-text');
     if (!el) return;
     const ts = parseInt(localStorage.getItem('smart_farmer_last_sync') || '0', 10);
+    const errTs = parseInt(localStorage.getItem('smart_farmer_last_sync_error') || '0', 10);
+    // F1: ถ้าการดึงล่าสุด "ล้มเหลว" (มี error marker ใหม่กว่าครั้งสำเร็จล่าสุด) ให้เตือน —
+    // ครอบคลุม auto-pull เงียบทุก 120s ที่เดิมล้มแล้วไม่ขึ้น UI เลย (ผู้ใช้เห็นแต่ข้อมูลเก่าลงเรื่อยๆ)
+    if (errTs > ts) {
+        el.style.color = '#b45309'; // amber = เตือน
+        el.innerText = ts
+            ? ('⚠️ อัปเดตไม่สำเร็จ · ข้อมูลล่าสุด ' + formatRelativeTime(ts) + ' · แตะเพื่อลองใหม่')
+            : '⚠️ ดึงข้อมูลไม่สำเร็จ · แตะเพื่อลองใหม่';
+        return;
+    }
+    el.style.color = ''; // ปกติ = สีเดิม
     el.innerText = ts ? ('อัปเดตล่าสุด: ' + formatRelativeTime(ts)) : 'ยังไม่เคยดึงข้อมูลจากคลาวด์';
 }
 
