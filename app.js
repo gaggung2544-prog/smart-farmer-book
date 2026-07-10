@@ -16123,7 +16123,7 @@ function checkQuotaLogin() {
         loginOverlay.classList.add('d-none');
         if (userBadgeText) {
             const staffName = (typeof getStaffName === 'function') ? getStaffName(staffId) : staffId;
-            userBadgeText.innerHTML = `<span style="color:var(--brand-blue)">👤 ${staffName}</span>`;
+            userBadgeText.innerHTML = `<span style="color:var(--brand-blue)">👤 ${esc(staffName)}</span>`;
         }
         return;
     }
@@ -16658,6 +16658,16 @@ function animateCountUpValue(elementId, targetValue, decimals = 0, suffix = '') 
 }
 
 // Render Dashboard Screen
+// SECURITY (XSS): ตัวหนี HTML กลาง — ใช้ทุกจุดที่ interpolate ข้อมูลจากชีต/ผู้ใช้อื่นลง innerHTML
+// endpoint หลังบ้านเปิดอยู่ -> attacker เขียนชื่อแปลง/โน้ต เป็น <img onerror=...> ได้ -> staff/ชาวไร่
+// ที่เปิดดูจะโดน exec (stored XSS). หนี & < > " ' ครบ เพื่อกันทั้ง element content และ attribute ทั้ง 2 แบบ quote
+function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+if (typeof window !== 'undefined') window.esc = esc;
+
 // WS3: การ์ดทักทายเฉพาะตัวบนหน้าแรก — ทำให้รู้สึกเป็น "แอปของฉัน" ตั้งแต่เข้าเมนูแรก
 function renderFarmerGreeting() {
     const card = document.getElementById('dash-greeting-card');
@@ -16812,7 +16822,7 @@ function renderDashboard() {
             else if (plot.supportStatus === 'รอติดต่อกลับ') badgeClass = 'waiting';
             else if (plot.supportStatus === 'ยังไม่ได้ยืนยันหลักทรัพย์') badgeClass = 'unconfirmed';
             
-            statusBadgeHtml = `<div style="margin-top: 4px;"><span style="font-size: 10px; color: var(--text-secondary);">งบสนับสนุน: </span><span class="status-badge ${badgeClass}">${plot.supportStatus || 'รอการตอบกลับ'}</span></div>`;
+            statusBadgeHtml = `<div style="margin-top: 4px;"><span style="font-size: 10px; color: var(--text-secondary);">งบสนับสนุน: </span><span class="status-badge ${badgeClass}">${esc(plot.supportStatus || 'รอการตอบกลับ')}</span></div>`;
         }
 
         const plotItem = document.createElement('div');
@@ -16822,14 +16832,14 @@ function renderDashboard() {
         // หาชื่อพนักงานผู้รับผิดชอบจาก mapping
         const assignedStaffName = (typeof getResponsibleStaffName === 'function') ? getResponsibleStaffName(plot) : null;
         const staffChip = assignedStaffName && assignedStaffName !== 'ไม่ระบุ' 
-            ? `<span style="font-size:10px; background:#e8f5e9; color:#2e7d32; border-radius:12px; padding:1px 7px; margin-left:4px; white-space:nowrap;">🧑‍💼 ${assignedStaffName}</span>`
+            ? `<span style="font-size:10px; background:#e8f5e9; color:#2e7d32; border-radius:12px; padding:1px 7px; margin-left:4px; white-space:nowrap;">🧑‍💼 ${esc(assignedStaffName)}</span>`
             : '';
         
         let polygonBadgeHtml = '';
         if (plot.polygonStatus === 'pending') {
             polygonBadgeHtml = `<span style="font-size:10px; background:#fff3cd; color:#856404; border-radius:12px; padding:1px 7px; margin-left:4px; border: 1px solid #ffeeba; display: inline-block;">⏳ รอตรวจขอบเขต</span>`;
         } else if (plot.polygonStatus === 'verified' && plot.factoryPlotCode) {
-            polygonBadgeHtml = `<span style="font-size:10px; background:#d4edda; color:#155724; border-radius:12px; padding:1px 7px; margin-left:4px; border: 1px solid #c3e6cb; display: inline-block;">✅ รหัสแปลงโรงงาน: ${plot.factoryPlotCode}</span>`;
+            polygonBadgeHtml = `<span style="font-size:10px; background:#d4edda; color:#155724; border-radius:12px; padding:1px 7px; margin-left:4px; border: 1px solid #c3e6cb; display: inline-block;">✅ รหัสแปลงโรงงาน: ${esc(plot.factoryPlotCode)}</span>`;
         } else if (plot.polygonStatus === 'rejected') {
             const esc = (s) => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
             const rjReason = plot.polygonRejectReason ? (': ' + esc(plot.polygonRejectReason)) : '';
@@ -16838,8 +16848,8 @@ function renderDashboard() {
 
         plotItem.innerHTML = `
             <div class="list-item-left">
-                <div class="list-item-title" style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">${plot.name} (${plot.cn}) ${polygonBadgeHtml}</div>
-                <div class="list-item-desc">พื้นที่: ${plot.area} ไร่ | พันธุ์: ${plot.variety || 'ขอนแก่น 3'} ${staffChip} ${statusBadgeHtml}</div>
+                <div class="list-item-title" style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">${esc(plot.name)} (${esc(plot.cn)}) ${polygonBadgeHtml}</div>
+                <div class="list-item-desc">พื้นที่: ${esc(plot.area)} ไร่ | พันธุ์: ${esc(plot.variety || 'ขอนแก่น 3')} ${staffChip} ${statusBadgeHtml}</div>
             </div>
             <div class="list-item-right" style="display:flex; align-items:center; gap:8px;">
                 <span class="status-badge ${cal.isProfitable ? 'profit' : 'loss'}">
@@ -17432,11 +17442,11 @@ function updateSupportCheckboxes() {
                         <div class="timeline-item" style="margin-bottom: 12px; position: relative;">
                             <div style="position: absolute; left: -19px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--brand-green); border: 2px solid #fff;"></div>
                             <div style="font-size: 10.5px; font-weight: 700; color: var(--text-primary); display: flex; justify-content: space-between;">
-                                <span>🧑‍💼 ${item.name || 'เจ้าหน้าที่'}</span>
-                                <span style="font-size: 9.5px; color: var(--text-light); font-weight: 400;">${item.time}</span>
+                                <span>🧑‍💼 ${esc(item.name || 'เจ้าหน้าที่')}</span>
+                                <span style="font-size: 9.5px; color: var(--text-light); font-weight: 400;">${esc(item.time)}</span>
                             </div>
                             <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4;">
-                                ${item.msg}
+                                ${esc(item.msg)}
                             </div>
                         </div>
                     `).join('')}
@@ -17449,19 +17459,19 @@ function updateSupportCheckboxes() {
         replyDiv.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid var(--border-color); padding-bottom:6px;">
                 <span style="font-size:12px; font-weight:600; color:var(--text-primary);">💬 ประวัติข้อความตอบกลับจากเจ้าหน้าที่:</span>
-                <span class="status-badge ${badgeClass}">${plot.supportStatus}</span>
+                <span class="status-badge ${badgeClass}">${esc(plot.supportStatus)}</span>
             </div>
             ${timelineHtml}
             ${plot.staffVisitDate ? `
             <div style="margin-top: 10px; padding: 10px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-size: 11.5px; font-weight: 600; box-sizing: border-box;">
-                <div style="display: flex; align-items: center; gap: 8px;"><span>📅 <strong>นัดวันเวลาเข้าแปลง:</strong> ${formatDateTimeThai(plot.staffVisitDate)} น.</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span>📅 <strong>นัดวันเวลาเข้าแปลง:</strong> ${esc(formatDateTimeThai(plot.staffVisitDate))} น.</span></div>
                 ${!plot.visitConfirmed ? `<button type="button" onclick="openVisitConfirm('${plot.id}')" style="margin-top:8px; width:100%; background:#0369a1; color:#fff; border:none; border-radius:16px; padding:9px 14px; font-size:12px; font-weight:700; cursor:pointer;">📸 ยืนยันว่าเจ้าหน้าที่มาแล้ว (ถ่ายรูป/ใส่หมายเหตุ)</button>` : ''}
             </div>
             ` : ''}
             ${plot.visitConfirmed ? `
             <div style="margin-top: 10px; padding: 10px; background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; color: #166534; font-size: 11.5px; font-weight: 600; box-sizing: border-box;">
-                <div style="display:flex; align-items:center; gap:8px;"><span>✅ <strong>ยืนยันเจ้าหน้าที่มาเข้าพบแล้ว</strong>${plot.visitConfirmTime ? ` (${plot.visitConfirmTime})` : ''}</span></div>
-                ${plot.visitConfirmNote ? `<div style="margin-top:6px; font-weight:500; color:#15803d;">📝 ${plot.visitConfirmNote}</div>` : ''}
+                <div style="display:flex; align-items:center; gap:8px;"><span>✅ <strong>ยืนยันเจ้าหน้าที่มาเข้าพบแล้ว</strong>${plot.visitConfirmTime ? ` (${esc(plot.visitConfirmTime)})` : ''}</span></div>
+                ${plot.visitConfirmNote ? `<div style="margin-top:6px; font-weight:500; color:#15803d;">📝 ${esc(plot.visitConfirmNote)}</div>` : ''}
                 ${plot.visitConfirmPhoto ? `<img src="${plot.visitConfirmPhoto}" alt="รูปยืนยันการเข้าพบ" style="margin-top:8px; max-width:100%; border-radius:8px; display:block;">` : ''}
             </div>
             ` : ''}
@@ -18277,9 +18287,9 @@ function refreshUserHUD() {
             
             if (userBadgeText) {
                 if (profile.role === 'FARMER') {
-                    userBadgeText.innerHTML = `<span>${profile.fullname}</span><span style="font-size:9px; color:var(--brand-green); display:block;">👨‍🌾 โควตา: ${profile.quotaOrId} (อายุ ${profile.age} ปี)</span>`;
+                    userBadgeText.innerHTML = `<span>${esc(profile.fullname)}</span><span style="font-size:9px; color:var(--brand-green); display:block;">👨‍🌾 โควตา: ${esc(profile.quotaOrId)} (อายุ ${esc(profile.age)} ปี)</span>`;
                 } else {
-                    userBadgeText.innerHTML = `<span>${profile.fullname}</span><span style="font-size:9px; color:var(--brand-blue); display:block;">👤 เจ้าหน้าที่: ${profile.quotaOrId} (อายุ ${profile.age} ปี)</span>`;
+                    userBadgeText.innerHTML = `<span>${esc(profile.fullname)}</span><span style="font-size:9px; color:var(--brand-blue); display:block;">👤 เจ้าหน้าที่: ${esc(profile.quotaOrId)} (อายุ ${esc(profile.age)} ปี)</span>`;
                 }
             }
             return;
@@ -18293,7 +18303,7 @@ function refreshUserHUD() {
     if (staffId) {
         if (userBadgeText) {
             const staffName = (typeof getStaffName === 'function') ? getStaffName(staffId) : staffId;
-            userBadgeText.innerHTML = `<span style="color:var(--brand-blue)">👤 ${staffName}</span>`;
+            userBadgeText.innerHTML = `<span style="color:var(--brand-blue)">👤 ${esc(staffName)}</span>`;
         }
     } else if (quota) {
         if (userBadgeText) {
@@ -20004,7 +20014,7 @@ function renderGrowthTimeline(plot) {
     
     let html = `
         <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
-            <span>พันธุ์: <strong style="color:var(--brand-green); font-size:12px;">${plot.variety || 'ขอนแก่น 3'}</strong></span>
+            <span>พันธุ์: <strong style="color:var(--brand-green); font-size:12px;">${esc(plot.variety || 'ขอนแก่น 3')}</strong></span>
             <span>อายุสะสม: ${ageDisplayHtml} (ปลูกเมื่อ: ${plot.plantingDate || 'ยังไม่ระบุ'})</span>
         </div>
         <div class="timeline-container">
@@ -21414,8 +21424,8 @@ function renderStaffDashboard() {
                 
                 item.innerHTML = `
                     <div style="display:flex; flex-direction:column; gap:2px;">
-                        <span style="font-size:12px; font-weight:600; color:#333;">โควตา: ${farmer.quota}</span>
-                        <span style="font-size:11px; color:#666;">${farmer.name} | ${farmer.totalArea.toFixed(2)} ไร่</span>
+                        <span style="font-size:12px; font-weight:600; color:#333;">โควตา: ${esc(farmer.quota)}</span>
+                        <span style="font-size:11px; color:#666;">${esc(farmer.name)} | ${farmer.totalArea.toFixed(2)} ไร่</span>
                     </div>
                     <div>${statusBadge}</div>
                 `;
@@ -21452,7 +21462,7 @@ function renderStaffDashboard() {
     // แสดงสรุปสำหรับพนักงาน
     const summaryEl = document.getElementById('staff-summary-info');
     if (summaryEl) {
-        summaryEl.innerHTML = `<span style="font-size:11px; color:var(--text-secondary);">📋 พนักงาน: <strong>${currentStaffName}</strong> | รหัส: <strong>${currentStaffId || '-'}</strong> | แสดงรายการ: <strong>${requests.length}</strong> รายการ</span>`;
+        summaryEl.innerHTML = `<span style="font-size:11px; color:var(--text-secondary);">📋 พนักงาน: <strong>${esc(currentStaffName)}</strong> | รหัส: <strong>${esc(currentStaffId || '-')}</strong> | แสดงรายการ: <strong>${requests.length}</strong> รายการ</span>`;
     }
     
     if (requests.length === 0) {
@@ -21502,8 +21512,8 @@ function renderStaffDashboard() {
                     <div style="font-size: 10px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">📜 ประวัติข้อความเดิม:</div>
                     ${history.map(item => `
                         <div style="font-size: 11px; margin-bottom: 6px; line-height: 1.35; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px;">
-                            <span style="font-weight:700; color:#475569;">${item.name} (${item.time}):</span>
-                            <span style="color:#334155;">${item.msg}</span>
+                            <span style="font-weight:700; color:#475569;">${esc(item.name)} (${esc(item.time)}):</span>
+                            <span style="color:#334155;">${esc(item.msg)}</span>
                         </div>
                     `).join('')}
                 </div>
@@ -21515,26 +21525,26 @@ function renderStaffDashboard() {
         card.innerHTML = `
             <div class="staff-card-header">
                 <div>
-                    <span class="staff-quota-tag">โควตา: ${plot.quota || 'ไม่ระบุ'}</span>
-                    <span style="font-size:11px; color:var(--text-secondary); margin-left:6px;">CN: ${plot.cn}</span>
+                    <span class="staff-quota-tag">โควตา: ${esc(plot.quota || 'ไม่ระบุ')}</span>
+                    <span style="font-size:11px; color:var(--text-secondary); margin-left:6px;">CN: ${esc(plot.cn)}</span>
                     ${plotSubzone ? `<span style="font-size:10px; background:#e3f2fd; color:#1565c0; border-radius:4px; padding:1px 6px; margin-left:4px;">สาย ${plotSubzone}</span>` : ''}
                 </div>
                 <div class="staff-amount-text">${totalSupportAmount.toLocaleString()} บาท</div>
             </div>
             
             <div style="font-size:13px; font-weight:600; color:var(--text-primary); margin-top:4px;">
-                👤 ${plot.name} (เบอร์โทร: <a href="tel:${plot.phone}" style="color:var(--brand-blue); text-decoration:underline;">${plot.phone}</a>)
+                👤 ${esc(plot.name)} (เบอร์โทร: <a href="tel:${esc(plot.phone)}" style="color:var(--brand-blue); text-decoration:underline;">${esc(plot.phone)}</a>)
             </div>
             
             <div style="font-size:11px; color:#1565c0; background:#e3f2fd; border-radius:6px; padding:4px 8px; margin-top:4px; display:inline-block;">
-                🧑‍💼 พนักงานรับผิดชอบ: <strong>${assignedStaff}</strong>
+                🧑‍💼 พนักงานรับผิดชอบ: <strong>${esc(assignedStaff)}</strong>
             </div>
             
             <div style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
-                🌾 <strong>แปลง:</strong> ${plot.variety} | <strong>พื้นที่:</strong> ${plot.area} ไร่
-                <br>🛠️ <strong>รายการขอ:</strong> ${plot.supportItems.join(', ') || '-'}
-                <br>📍 <strong>พิกัดแปลง:</strong> <span style="font-family:'Outfit';">${plot.location}</span>
-                ${plot.staffReplyTime ? `<br>🕐 <strong>อัปเดตล่าสุด:</strong> ${plot.staffReplyTime}` : ''}
+                🌾 <strong>แปลง:</strong> ${esc(plot.variety)} | <strong>พื้นที่:</strong> ${esc(plot.area)} ไร่
+                <br>🛠️ <strong>รายการขอ:</strong> ${esc(plot.supportItems.join(', ')) || '-'}
+                <br>📍 <strong>พิกัดแปลง:</strong> <span style="font-family:'Outfit';">${esc(plot.location)}</span>
+                ${plot.staffReplyTime ? `<br>🕐 <strong>อัปเดตล่าสุด:</strong> ${esc(plot.staffReplyTime)}` : ''}
             </div>
             
             <div style="display:flex; gap:8px; margin-top:10px;">
@@ -21548,7 +21558,7 @@ function renderStaffDashboard() {
                 <label class="form-label" style="font-size:10px; margin-bottom:2px; font-weight:600; color:var(--text-secondary);">พิกัดและแนวเขตแปลง (Polygon):</label>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:11px; font-weight:600; color:${plot.polygonStatus === 'verified' ? '#10b981' : (plot.polygonStatus === 'rejected' ? '#ef4444' : '#f59e0b')}">
-                        ${plot.polygonStatus === 'verified' ? '✅ รหัสโรงงาน: ' + plot.factoryPlotCode : (plot.polygonStatus === 'rejected' ? '❌ ตีกลับรอแก้ไข' : '⏳ รอตรวจและออกรหัส')}
+                        ${plot.polygonStatus === 'verified' ? '✅ รหัสโรงงาน: ' + esc(plot.factoryPlotCode) : (plot.polygonStatus === 'rejected' ? '❌ ตีกลับรอแก้ไข' : '⏳ รอตรวจและออกรหัส')}
                     </span>
                     <button type="button" class="btn btn-verify-polygon" style="padding:0 8px; height:24px; font-size:10px; background:#fff; border:1px solid #cbd5e1; color:var(--text-primary);">
                         ตรวจแผนที่
@@ -22238,7 +22248,7 @@ async function fetchAndRenderAnalytics() {
                         lastUpEl.innerText = '🔄 อัปเดตเมื่อ: ' + new Date().toLocaleTimeString('th-TH') + ' (ข้อมูล Cloud)';
                     }
                 } else {
-                    showToast('❌ ไม่สามารถดึงข้อมูลจาก Sheet ได้: ' + (data.message || ''), 'error');
+                    showToast('❌ ไม่สามารถดึงข้อมูลจาก Sheet ได้: ' + esc(data.message || ''), 'error');
                     if (cloudContent) cloudContent.innerHTML = '⚠️ ดึงข้อมูลสรุปจาก Sheet ไม่สำเร็จ — แสดงข้อมูลล่าสุดในเครื่องแทน';
                     await renderAnalyticsReports(plots);
                 }
@@ -22638,10 +22648,10 @@ function renderRankingTable(renderPlots) {
         tr.innerHTML = `
             <td style="padding:8px 8px; border-bottom:1px solid #f1f3f4; color:#666;">${idx + 1}</td>
             <td style="padding:8px 8px; border-bottom:1px solid #f1f3f4;">
-                <div style="font-weight:600; color:#333; text-align:left;">${p.cn}</div>
-                <div style="font-size:8px; color:#888; text-align:left;">${p.name} ${p.isHarvested ? '✅ ตัดแล้ว' : '🎋 ยังไม่ตัด'}</div>
+                <div style="font-weight:600; color:#333; text-align:left;">${esc(p.cn)}</div>
+                <div style="font-size:8px; color:#888; text-align:left;">${esc(p.name)} ${p.isHarvested ? '✅ ตัดแล้ว' : '🎋 ยังไม่ตัด'}</div>
             </td>
-            <td style="padding:8px 8px; border-bottom:1px solid #f1f3f4; text-align:right; font-family:'Outfit';">${p.area}</td>
+            <td style="padding:8px 8px; border-bottom:1px solid #f1f3f4; text-align:right; font-family:'Outfit';">${esc(p.area)}</td>
             <td style="padding:8px 8px; border-bottom:1px solid #f1f3f4; text-align:right; font-family:'Outfit';">${p.yieldVal.toFixed(1)}</td>
             <td style="padding:8px 8px; border-bottom:1px solid #f1f3f4; text-align:right; font-family:'Outfit'; font-weight:bold; color:${profitColor};">${p.profitVal >= 0 ? '+' : ''}${formattedProfit}</td>
         `;
@@ -22663,26 +22673,26 @@ function renderAnalyticsAlerts(renderPlots) {
             if (age > 12) {
                 alerts.push({
                     type: 'danger',
-                    text: `🚨 แปลง <strong>${plot.cn}</strong> (${plot.name}) อายุอ้อย <strong>${age.toFixed(1)} เดือน</strong> (เกินกำหนดตัด 12 เดือนแล้ว ควรดำเนินการตัดด่วน!)`
+                    text: `🚨 แปลง <strong>${esc(plot.cn)}</strong> (${esc(plot.name)}) อายุอ้อย <strong>${age.toFixed(1)} เดือน</strong> (เกินกำหนดตัด 12 เดือนแล้ว ควรดำเนินการตัดด่วน!)`
                 });
             } else if (age >= 10) {
                 alerts.push({
                     type: 'warning',
-                    text: `🎋 แปลง <strong>${plot.cn}</strong> (${plot.name}) ครบกำหนดตัดแล้ว (อายุ <strong>${age.toFixed(1)} เดือน</strong>)`
+                    text: `🎋 แปลง <strong>${esc(plot.cn)}</strong> (${esc(plot.name)}) ครบกำหนดตัดแล้ว (อายุ <strong>${age.toFixed(1)} เดือน</strong>)`
                 });
             }
             
             if ((plot.height === 2.0 && plot.diameter === 2.5) || !plot.height || !plot.diameter) {
                 alerts.push({
                     type: 'info',
-                    text: `🎋 แปลง <strong>${plot.cn}</strong> ยังไม่มีการประเมินผลผลิตจริงในฤดูกาลนี้`
+                    text: `🎋 แปลง <strong>${esc(plot.cn)}</strong> ยังไม่มีการประเมินผลผลิตจริงในฤดูกาลนี้`
                 });
             }
             
             if (plot.costPerRai === 10000 || !plot.costPerRai) {
                 alerts.push({
                     type: 'info',
-                    text: `💵 แปลง <strong>${plot.cn}</strong> ยังใช้ค่าต้นทุนเริ่มต้น (กรุณาปรับปรุงข้อมูลต้นทุนจริง)`
+                    text: `💵 แปลง <strong>${esc(plot.cn)}</strong> ยังใช้ค่าต้นทุนเริ่มต้น (กรุณาปรับปรุงข้อมูลต้นทุนจริง)`
                 });
             }
         }
@@ -23357,7 +23367,7 @@ function runSmartAlertEngine() {
         alerts.push({
             type: 'info',
             icon: '📅',
-            msg: `เจ้าหน้าที่นัดหมายจะเข้าไปทำกิจกรรมที่แปลง <strong>${p.name}</strong> วันที่ ${formatDateTimeThai(p.staffVisitDate)} น.${confirmBtn}`
+            msg: `เจ้าหน้าที่นัดหมายจะเข้าไปทำกิจกรรมที่แปลง <strong>${esc(p.name)}</strong> วันที่ ${esc(formatDateTimeThai(p.staffVisitDate))} น.${confirmBtn}`
         });
     });
     
@@ -23419,10 +23429,10 @@ function exportPlotToPDF() {
             <p style="color:#555;font-size:12px;margin:4px 0 0;">พิมพ์: ${new Date().toLocaleDateString('th-TH')}</p>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
-            <tr><td style="padding:5px;font-weight:600;width:45%;">ชื่อแปลง:</td><td>${plot.name||'-'}</td></tr>
-            <tr style="background:#f5f5f5;"><td style="padding:5px;font-weight:600;">เลขโควตา:</td><td>${plot.quota||'-'}</td></tr>
+            <tr><td style="padding:5px;font-weight:600;width:45%;">ชื่อแปลง:</td><td>${esc(plot.name||'-')}</td></tr>
+            <tr style="background:#f5f5f5;"><td style="padding:5px;font-weight:600;">เลขโควตา:</td><td>${esc(plot.quota||'-')}</td></tr>
             <tr><td style="padding:5px;font-weight:600;">พื้นที่:</td><td>${area} ไร่</td></tr>
-            <tr style="background:#f5f5f5;"><td style="padding:5px;font-weight:600;">พันธุ์:</td><td>${plot.variety||'-'}</td></tr>
+            <tr style="background:#f5f5f5;"><td style="padding:5px;font-weight:600;">พันธุ์:</td><td>${esc(plot.variety||'-')}</td></tr>
         </table>
         <h3 style="color:#1565c0;border-bottom:1px solid #ddd;padding-bottom:6px;">📊 ผลเก็บเกี่ยว</h3>
         <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
@@ -23487,14 +23497,14 @@ function renderStaffComparisonTable() {
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:16px; font-weight:700; color:#4a5568;">${medal}</span>
                     <div style="text-align:left;">
-                        <div style="font-weight:700; font-size:13px; color:#1e293b;">${r.plot.name || r.plot.id.slice(-6)}</div>
-                        <div style="font-size:12px; color:#64748b;">โควตา: ${r.plot.quota || '-'} | พื้นที่: ${r.area.toFixed(1)} ไร่</div>
+                        <div style="font-weight:700; font-size:13px; color:#1e293b;">${esc(r.plot.name || r.plot.id.slice(-6))}</div>
+                        <div style="font-size:12px; color:#64748b;">โควตา: ${esc(r.plot.quota || '-')} | พื้นที่: ${r.area.toFixed(1)} ไร่</div>
                     </div>
                 </div>
                 <div style="text-align:right;">
                     <div style="font-weight:700; font-size:13px; color:${r.ypr < 8 ? '#e53935' : '#2e7d32'};">${r.ypr.toFixed(1)} ตัน/ไร่</div>
                     <div style="font-size:12px; color:#64748b;">
-                        CCS: <span style="font-weight:600; color:#1e293b;">${r.ccs || '-'}</span> | 
+                        CCS: <span style="font-weight:600; color:#1e293b;">${esc(r.ccs || '-')}</span> |
                         กำไร: <span style="font-weight:700; color:${r.net >= 0 ? '#2e7d32' : '#e53935'};">${r.net !== 0 ? (r.net / 1000).toFixed(1) + 'K' : '-'}</span>
                     </div>
                 </div>
@@ -24565,7 +24575,7 @@ function renderAssetDebtHub() {
                                 const row = document.createElement('div');
                                 row.className = "asset-item-row";
                                 row.innerHTML = `
-                                    <span class="asset-item-title">${item.type}: <span style="font-weight:normal; color:var(--text-secondary);">${item.detail || '-'}</span></span>
+                                    <span class="asset-item-title">${esc(item.type)}: <span style="font-weight:normal; color:var(--text-secondary);">${esc(item.detail || '-')}</span></span>
                                     <span class="asset-item-val">${(parseFloat(item.value) || 0).toLocaleString('th-TH')} บาท</span>
                                 `;
                                 maList.appendChild(row);
@@ -24587,7 +24597,7 @@ function renderAssetDebtHub() {
                                 const row = document.createElement('div');
                                 row.className = "asset-item-row";
                                 row.innerHTML = `
-                                    <span class="asset-item-title">${item.label}: <span style="font-weight:normal; color:var(--text-secondary);">${item.val || '-'}</span></span>
+                                    <span class="asset-item-title">${item.label}: <span style="font-weight:normal; color:var(--text-secondary);">${esc(item.val || '-')}</span></span>
                                     <span class="asset-item-val">${(parseFloat(item.amt) || 0).toLocaleString('th-TH')} บาท</span>
                                 `;
                                 maList.appendChild(row);
@@ -24610,7 +24620,7 @@ function renderAssetDebtHub() {
                             const row = document.createElement('div');
                             row.className = "guarantor-item-row";
                             row.innerHTML = `
-                                <span class="guarantor-icon-label">👤 ${idx + 1}. ${name}</span>
+                                <span class="guarantor-icon-label">👤 ${idx + 1}. ${esc(name)}</span>
                                 <span style="color:var(--brand-blue); font-weight:700; font-family:'Outfit';">30,000 บาท</span>
                             `;
                             gList.appendChild(row);
@@ -24823,7 +24833,7 @@ function renderStaffAssetDebtRequests() {
         
         card.innerHTML = `
             <div style="text-align:left;">
-                <div style="font-size:11.5px; font-weight:700; color:#333;">${nameText}</div>
+                <div style="font-size:11.5px; font-weight:700; color:#333;">${esc(nameText)}</div>
                 <div style="font-size:9.5px; color:var(--text-secondary); margin-top:2px;">${reqLabel}</div>
             </div>
             <div class="status-badge" style="font-size:9px; padding:2px 8px; font-weight:700; border-radius:6px; background:${statusBg}; color:${statusColor};">${statusBadgeText}</div>
