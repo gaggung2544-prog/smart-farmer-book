@@ -16668,6 +16668,18 @@ function esc(s) {
 }
 if (typeof window !== 'undefined') window.esc = esc;
 
+// SECURITY (XSS): ปุ่ม "ยืนยันเจ้าหน้าที่มาแล้ว" ใช้ event-delegation + data-plot-id แทน inline onclick
+// เดิม onclick="openVisitConfirm('${plot.id}')" -> plot.id จากชีตหลุดเข้า JS-string-in-attribute context
+// ซึ่ง HTML-escape กันไม่ได้ (เบราว์เซอร์ decode entity ก่อน exec). อ่านค่าผ่าน dataset จึงเป็น JS value ล้วน ปลอดภัย
+if (typeof document !== 'undefined') {
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest && e.target.closest('.btn-visit-confirm');
+        if (btn && typeof openVisitConfirm === 'function') {
+            openVisitConfirm(btn.dataset.plotId);
+        }
+    });
+}
+
 // WS3: การ์ดทักทายเฉพาะตัวบนหน้าแรก — ทำให้รู้สึกเป็น "แอปของฉัน" ตั้งแต่เข้าเมนูแรก
 function renderFarmerGreeting() {
     const card = document.getElementById('dash-greeting-card');
@@ -17465,7 +17477,7 @@ function updateSupportCheckboxes() {
             ${plot.staffVisitDate ? `
             <div style="margin-top: 10px; padding: 10px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-size: 11.5px; font-weight: 600; box-sizing: border-box;">
                 <div style="display: flex; align-items: center; gap: 8px;"><span>📅 <strong>นัดวันเวลาเข้าแปลง:</strong> ${esc(formatDateTimeThai(plot.staffVisitDate))} น.</span></div>
-                ${!plot.visitConfirmed ? `<button type="button" onclick="openVisitConfirm('${plot.id}')" style="margin-top:8px; width:100%; background:#0369a1; color:#fff; border:none; border-radius:16px; padding:9px 14px; font-size:12px; font-weight:700; cursor:pointer;">📸 ยืนยันว่าเจ้าหน้าที่มาแล้ว (ถ่ายรูป/ใส่หมายเหตุ)</button>` : ''}
+                ${!plot.visitConfirmed ? `<button type="button" class="btn-visit-confirm" data-plot-id="${esc(plot.id)}" style="margin-top:8px; width:100%; background:#0369a1; color:#fff; border:none; border-radius:16px; padding:9px 14px; font-size:12px; font-weight:700; cursor:pointer;">📸 ยืนยันว่าเจ้าหน้าที่มาแล้ว (ถ่ายรูป/ใส่หมายเหตุ)</button>` : ''}
             </div>
             ` : ''}
             ${plot.visitConfirmed ? `
@@ -23363,7 +23375,7 @@ function runSmartAlertEngine() {
     const upcomingVisits = myPlots.filter(p => p.staffVisitDate && p.staffVisitDate !== '' && !p.visitConfirmed);
     upcomingVisits.forEach(p => {
         // ปุ่มให้ชาวไร่ยืนยันว่าเจ้าหน้าที่มาแล้ว (inline onclick อยู่รอด innerHTML rebuild) — โชว์เฉพาะฝั่งชาวไร่
-        const confirmBtn = isStaffViewer ? '' : `<br><button type="button" onclick="openVisitConfirm('${p.id}')" style="margin-top:6px; display:inline-block; background:#0369a1; color:#fff; border:none; border-radius:16px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;">📸 ยืนยันว่าเจ้าหน้าที่มาแล้ว</button>`;
+        const confirmBtn = isStaffViewer ? '' : `<br><button type="button" class="btn-visit-confirm" data-plot-id="${esc(p.id)}" style="margin-top:6px; display:inline-block; background:#0369a1; color:#fff; border:none; border-radius:16px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;">📸 ยืนยันว่าเจ้าหน้าที่มาแล้ว</button>`;
         alerts.push({
             type: 'info',
             icon: '📅',
