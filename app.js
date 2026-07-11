@@ -16875,8 +16875,8 @@ function renderDashboard() {
                 <div class="list-item-desc">พื้นที่: ${esc(plot.area)} ไร่ | พันธุ์: ${esc(plot.variety || 'ขอนแก่น 3')} ${staffChip} ${statusBadgeHtml}</div>
             </div>
             <div class="list-item-right" style="display:flex; align-items:center; gap:8px;">
-                <span class="status-badge ${cal.isProfitable ? 'profit' : 'loss'}">
-                    ${cal.isProfitable ? '👍 กำไร ' + Math.abs(Math.round(cal.totalExpectedProfit)).toLocaleString() : '❌ ขาดทุน ' + Math.abs(Math.round(cal.totalExpectedProfit)).toLocaleString()} บาท
+                <span class="status-badge ${cal.isProfitable ? 'profit' : 'loss'}" title="กำไร/ขาดทุนคาดการณ์จากค่าที่วัดต้นอ้อย (ยังไม่ใช่ผลเก็บเกี่ยวจริง)">
+                    ${cal.isProfitable ? '👍 คาดกำไร ' + Math.abs(Math.round(cal.totalExpectedProfit)).toLocaleString() : '❌ คาดขาดทุน ' + Math.abs(Math.round(cal.totalExpectedProfit)).toLocaleString()} บาท
                 </span>
                 <!-- Map Cache Button -->
                 <button class="cache-map-btn" title="ดาวน์โหลดแผนที่ออฟไลน์" style="background:none; border:none; color:var(--brand-blue); cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center; transition: color 0.2s;">
@@ -23565,6 +23565,16 @@ function exportStaffZoneCSV() {
 
 // ---- PRIORITY 5: SEASON COMPARISON & LEADERBOARD ----
 
+// จำกัดชุดแปลงให้ตรงกับผู้ใช้ปัจจุบัน — เจ้าหน้าที่เห็นเฉพาะแปลงในสายที่รับผิดชอบ, ชาวไร่เห็นเฉพาะโควตาตัวเอง
+// ใช้กติกาเดียวกับ renderPLSummaryCards()/exportStaffZoneCSV() เพื่อให้ทุกการ์ดในหน้าสถิตินับแปลงชุดเดียวกัน
+function getAnalyticsScopedPlots() {
+    const staffId = localStorage.getItem('smart_farmer_staff_id') || '';
+    const quota = localStorage.getItem('smart_farmer_quota') || '';
+    if (staffId && typeof isStaffResponsibleForPlot === 'function') return plots.filter(p => isStaffResponsibleForPlot(staffId, p));
+    if (quota && quota !== '00000') return plots.filter(p => p.quota === quota);
+    return plots;
+}
+
 function getPlotSeasonTag(plot) {
     const d = (Array.isArray(plot.harvestLogs)&&plot.harvestLogs.length>0)
         ?plot.harvestLogs[0].date:(plot.registrationDate||plot.createdAt);
@@ -23576,7 +23586,7 @@ function renderSeasonComparison() {
     const container=document.getElementById('season-comparison-container');
     if (!container) return;
     const seasons={};
-    plots.forEach(p=>{ const t=getPlotSeasonTag(p); if(!seasons[t]) seasons[t]=[]; seasons[t].push(p); });
+    getAnalyticsScopedPlots().forEach(p=>{ const t=getPlotSeasonTag(p); if(!seasons[t]) seasons[t]=[]; seasons[t].push(p); });
     const keys=Object.keys(seasons).sort().reverse();
     if (keys.length<1){container.innerHTML='<div style="color:#aaa;font-size:11px;text-align:center;padding:12px;">ยังไม่มีข้อมูล</div>';return;}
     const stats=keys.map(k=>{
@@ -23603,7 +23613,7 @@ function renderSeasonComparison() {
 function renderLeaderboard() {
     const container=document.getElementById('leaderboard-container');
     if (!container) return;
-    const valid=plots.filter(p=>parseFloat(p.actualHarvestTons)>0&&parseFloat(p.area)>0);
+    const valid=getAnalyticsScopedPlots().filter(p=>parseFloat(p.actualHarvestTons)>0&&parseFloat(p.area)>0);
     if (valid.length<2){container.innerHTML='<div style="color:#aaa;font-size:11px;text-align:center;padding:12px;">ต้องการอย่างน้อย 2 แปลง</div>';return;}
     const ranked=valid.map(p=>({ypr:parseFloat(p.actualHarvestTons)/parseFloat(p.area)})).sort((a,b)=>b.ypr-a.ypr).slice(0,8);
     const maxY=ranked[0].ypr;
