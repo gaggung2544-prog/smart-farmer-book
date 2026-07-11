@@ -19,7 +19,7 @@
          ========================================================================== -->
     <script>
     (function () {
-        window.SF_BUILD = 'v92';
+        window.SF_BUILD = 'v95';
         var KEY = 'smart_farmer_error_log';
         var MAX = 30;
         window.__sfErrors = [];
@@ -693,6 +693,18 @@
                                         <option value="LK92-11">LK92-11</option>
                                     </select>
                                 </div>
+                                <!-- Farmer Quota (multi-select; shown in staff mode when >1 quota) -->
+                                <div id="filter-map-quota-wrap" class="d-none">
+                                    <div style="font-size: 9.5px; font-weight: 700; color: #64748b; margin-bottom: 3px; display:flex; align-items:center; justify-content:space-between; gap:3px;">
+                                        <span style="display:flex; align-items:center; gap:3px;">👤 โควตาชาวไร่</span>
+                                        <span style="font-weight:600; white-space:nowrap;">
+                                            <a href="#" id="filter-map-quota-all" style="color:#2563c9; text-decoration:none; font-size:9px;">ทั้งหมด</a>
+                                            <span style="color:#cbd5e1;">·</span>
+                                            <a href="#" id="filter-map-quota-none" style="color:#94a3b8; text-decoration:none; font-size:9px;">ล้าง</a>
+                                        </span>
+                                    </div>
+                                    <div id="filter-map-quota-list" style="max-height: 108px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 6px; background: white;"></div>
+                                </div>
                             </div>
                         </div>
 
@@ -715,8 +727,9 @@
                                     <input type="checkbox" id="layer-toggle-pest" style="accent-color: var(--brand-red);">
                                     <span>🐛 พื้นที่ระบาดศัตรูพืช</span>
                                 </label>
-                                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #334155; cursor: pointer;">
-                                    <input type="checkbox" id="layer-toggle-staff" checked style="accent-color: #7c3aed;">
+                                <!-- เลเยอร์เจ้าหน้าที่ถูกซ่อน: เดิมเป็นหมุดเจ้าหน้าที่จำลอง ยังไม่มีพิกัด GPS จริง -->
+                                <label style="display: none; align-items: center; gap: 6px; font-size: 12px; color: #334155; cursor: pointer;">
+                                    <input type="checkbox" id="layer-toggle-staff" style="accent-color: #7c3aed;">
                                     <span>🧑‍💼 เจ้าหน้าที่ส่งเสริม</span>
                                 </label>
                             </div>

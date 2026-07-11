@@ -864,6 +864,34 @@ function populateSmartMapFilterOptions() {
         varietySelect.innerHTML += `<option value="${v}">${v}</option>`;
     });
     varietySelect.value = varieties.includes(selectedVariety) ? selectedVariety : 'all';
+
+    // ---- ตัวกรองโควตา (เลือกเฉพาะ/หลายโควตา) — แสดงเมื่อขอบเขตมี ≥2 โควตา (ปกติคือโหมดเจ้าหน้าที่) ----
+    const quotaWrap = document.getElementById('filter-map-quota-wrap');
+    const quotaList = document.getElementById('filter-map-quota-list');
+    if (quotaWrap && quotaList) {
+        const base = (typeof getMapBasePlots === 'function') ? getMapBasePlots() : window.plots;
+        const quotas = [...new Set(base.map(p => p.quota).filter(Boolean).map(q => String(q)))].sort();
+        // จำสถานะติ๊กเดิม (คงไว้เมื่อ repopulate); ครั้งแรก (ยังไม่มี checkbox) = ติ๊กทุกอันเป็นค่าเริ่มต้น
+        const hadCbs = quotaList.querySelectorAll('.filter-map-quota-cb').length > 0;
+        const prevChecked = new Set([...quotaList.querySelectorAll('.filter-map-quota-cb:checked')].map(c => c.value));
+        if (quotas.length >= 2) {
+            const escq = (s) => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+            quotaList.innerHTML = quotas.map(q => {
+                const nm = (base.find(p => String(p.quota) === q) || {}).name || '';
+                const checked = (!hadCbs || prevChecked.has(q)) ? 'checked' : '';
+                return `<label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#334155; cursor:pointer; padding:2px 0;"><input type="checkbox" class="filter-map-quota-cb" value="${escq(q)}" ${checked} style="accent-color: var(--brand-green);"><span>${escq(q)}${nm ? (' - ' + escq(nm)) : ''}</span></label>`;
+            }).join('');
+            quotaList.querySelectorAll('.filter-map-quota-cb').forEach(cb => { cb.onchange = () => applySmartMapFilters(); });
+            const allBtn = document.getElementById('filter-map-quota-all');
+            const noneBtn = document.getElementById('filter-map-quota-none');
+            if (allBtn) allBtn.onclick = (e) => { e.preventDefault(); quotaList.querySelectorAll('.filter-map-quota-cb').forEach(c => c.checked = true); applySmartMapFilters(); };
+            if (noneBtn) noneBtn.onclick = (e) => { e.preventDefault(); quotaList.querySelectorAll('.filter-map-quota-cb').forEach(c => c.checked = false); applySmartMapFilters(); };
+            quotaWrap.classList.remove('d-none');
+        } else {
+            quotaList.innerHTML = '';
+            quotaWrap.classList.add('d-none');
+        }
+    }
 }
 
 // Bind layer checkboxes
@@ -1067,15 +1095,49 @@ function stopSmartMapGpsTracking(silent = false) {
 }
 
 // Get filtered plots based on current dropdown options [NEW]
+// จำกัดชุดแปลงเริ่มต้นให้ตรงกับผู้ใช้ปัจจุบัน — โหมดชาวไร่เห็นเฉพาะโควตาตัวเอง,
+// โหมดเจ้าหน้าที่เห็นทั้งสายที่รับผิดชอบ (กติกาเดียวกับ getUserPlots()/renderPLSummaryCards() ฝั่งแอป)
+function getMapBasePlots() {
+    const all = window.plots || [];
+    const staffId = localStorage.getItem('smart_farmer_staff_id') || '';
+    const quota = localStorage.getItem('smart_farmer_quota') || '';
+    if (staffId && typeof window.isStaffResponsibleForPlot === 'function') {
+        return all.filter(p => window.isStaffResponsibleForPlot(staffId, p));
+    }
+    if (quota && quota !== '00000') {
+        const norm = (typeof window.formatQuota5Digit === 'function') ? window.formatQuota5Digit(quota) : String(quota).trim();
+        return all.filter(p => {
+            const pq = (typeof window.formatQuota5Digit === 'function') ? window.formatQuota5Digit(p.quota) : String(p.quota).trim();
+            return pq === norm;
+        });
+    }
+    return all;
+}
+
 function getFilteredPlots() {
     if (!window.plots) return [];
-    
+
+    let base = getMapBasePlots();
+
+    // ตัวกรองโควตา (เลือกเฉพาะ/หลายโควตา) — ใช้มากในโหมดเจ้าหน้าที่ที่เห็นหลายโควตาในสาย
+    const quotaCbs = document.querySelectorAll('#filter-map-quota-list .filter-map-quota-cb');
+    if (quotaCbs.length) {
+        const checked = [...quotaCbs].filter(c => c.checked).map(c => String(c.value));
+        if (checked.length === 0) {
+            base = []; // ไม่ติ๊กโควตาใดเลย = ไม่แสดงแปลง
+        } else if (checked.length < quotaCbs.length) {
+            const set = new Set(checked);
+            base = base.filter(p => set.has(String(p.quota))); // ติ๊กบางโควตา = แสดงเฉพาะที่เลือก
+        }
+        // ติ๊กครบทุกโควตา = ไม่ต้องกรอง (แสดงทั้งสาย)
+    }
+
     const cropYearVal = document.getElementById('filter-map-crop-year')?.value || 'all';
     const caneTypeVal = document.getElementById('filter-map-cane-type')?.value || 'all';
     const irrigationVal = document.getElementById('filter-map-irrigation')?.value || 'all';
     const varietyVal = document.getElementById('filter-map-variety')?.value || 'all';
-    
-    return window.plots.filter(plot => {
+
+    return base.filter(plot => {
         // Crop Year
         if (cropYearVal !== 'all' && plot.cropYear !== cropYearVal) return false;
         
@@ -1108,8 +1170,22 @@ function applySmartMapFilters() {
 function updateSmartMapStatsUI() {
     const filtered = getFilteredPlots();
     const countPlots = filtered.length;
-    const countPests = filtered.filter(p => p.pestReported || p.polygonStatus === 'pest_alert').length; 
-    const countStaff = 2; // simulated staff counts
+    // นับจากรายงานพบศัตรูพืช/โรค จริง (window.pestReports) ในขอบเขตที่แสดง — ไม่นับรายการที่สแกนแล้วปกติ
+    const allowedPlotId = new Set(filtered.map(p => p.id));
+    const allowedQuota = new Set(filtered.map(p => String(p.quota)));
+    const countPests = (window.pestReports || []).filter(rep => {
+        if (!(allowedPlotId.has(rep.plotId) || allowedQuota.has(String(rep.quota)))) return false;
+        const dx = (rep.pestDiagnoses || '').trim();
+        const lvl = (rep.pestLevels || '').trim();
+        return !((lvl === '' || lvl === 'ปกติ') && (dx === '' || dx === 'ไม่ระบุเฉพาะเจาะจง'));
+    }).length;
+    // นับเจ้าหน้าที่ผู้รับผิดชอบจริงจากแปลงที่แสดง (ไม่ใช่ค่าจำลอง 2 คน)
+    const officerSet = new Set();
+    filtered.forEach(p => {
+        const nm = (typeof window.getResponsibleStaffName === 'function') ? window.getResponsibleStaffName(p) : '';
+        if (nm && nm !== 'ไม่ระบุ' && nm !== 'ว่าง') officerSet.add(nm);
+    });
+    const countStaff = officerSet.size;
 
     const elPlots = document.getElementById('map-stat-plots');
     const elPests = document.getElementById('map-stat-pests');
@@ -1153,18 +1229,37 @@ function getPlotPolygon(plot) {
     return smoothPolygonChaikin(square, 2);
 }
 
+// แปลงมีพารามิเตอร์ประเมินจริง (ผู้ใช้กรอกที่หน้าประเมินแล้ว) พอจะคำนวณผลผลิตได้หรือไม่
+function plotHasYieldBasis(plot) {
+    return (parseFloat(plot.stalksPerMeter) > 0) && (parseFloat(plot.height) > 0)
+        && (parseFloat(plot.diameter) > 0) && (parseFloat(plot.spacing) > 0);
+}
+
+// ผลผลิตต่อไร่ที่แท้จริงของแปลง: ใช้ผลเก็บเกี่ยวจริงถ้ามี, ไม่งั้นใช้ค่าประเมินจากพารามิเตอร์แปลง
+// (สูตรเดียวกับหน้าประเมิน/แดชบอร์ด ผ่าน calculatePlotDetails) — คืน val:null เมื่อยังไม่มีข้อมูลจริง
+// (เลิกใช้สูตรจำลองเดิมที่ตกไปค่าดีฟอลต์ = 6.6 ตัน/ไร่ ทุกแปลง)
+function getPlotYieldPerRai(plot) {
+    const area = parseFloat(plot.area) || 0;
+    const actualTons = parseFloat(plot.actualHarvestTons) || 0;
+    if (actualTons > 0 && area > 0) return { val: actualTons / area, source: 'actual' };
+    if (plotHasYieldBasis(plot) && typeof window.calculatePlotDetails === 'function') {
+        const y = parseFloat(window.calculatePlotDetails(plot).expectedYieldPerRai);
+        if (!isNaN(y) && y > 0) return { val: y, source: 'estimate' };
+    }
+    return { val: null, source: 'none' };
+}
+
 function getYieldColor(plot) {
-    const stalks = parseFloat(plot.stalksPerMeter) || 8;
-    const h = parseFloat(plot.height) || 2.2;
-    const d = parseFloat(plot.diameter) || 2.5;
-    const sp = parseFloat(plot.spacing) || 1.2;
-    
-    // Calculate simulated tons per rai
-    const tonsPerRai = stalks * h * (d * 0.15) * (1.2 / sp); 
-    
-    if (tonsPerRai >= 12) return { border: '#10b981', fill: '#10b981', name: 'ดีเยี่ยม (>12 ตัน/ไร่)', val: tonsPerRai };
-    if (tonsPerRai >= 8) return { border: '#d97706', fill: '#fbbf24', name: 'ปานกลาง (8-12 ตัน/ไร่)', val: tonsPerRai };
-    return { border: '#ef4444', fill: '#f87171', name: 'วิกฤต (<8 ตัน/ไร่)', val: tonsPerRai };
+    const y = getPlotYieldPerRai(plot);
+    const tonsPerRai = y.val;
+    if (tonsPerRai === null) {
+        // ยังไม่มีข้อมูลจริง — เทากลางๆ ไม่เดาเป็นตัวเลขหลอก
+        return { border: '#94a3b8', fill: '#cbd5e1', name: 'ยังไม่มีข้อมูลผลผลิต', val: null, source: 'none' };
+    }
+    const tag = y.source === 'actual' ? ' · จากผลเก็บเกี่ยวจริง' : ' · ค่าประเมิน';
+    if (tonsPerRai >= 12) return { border: '#10b981', fill: '#10b981', name: 'ดีเยี่ยม (>12 ตัน/ไร่)' + tag, val: tonsPerRai, source: y.source };
+    if (tonsPerRai >= 8) return { border: '#d97706', fill: '#fbbf24', name: 'ปานกลาง (8-12 ตัน/ไร่)' + tag, val: tonsPerRai, source: y.source };
+    return { border: '#ef4444', fill: '#f87171', name: 'วิกฤต (<8 ตัน/ไร่)' + tag, val: tonsPerRai, source: y.source };
 }
 
 function renderYieldSmartLayer() {
@@ -1206,7 +1301,12 @@ function renderYieldSmartLayer() {
             fillOpacity: fillOpacity
         }).addTo(smartMapLayers.yield);
 
-        const estYield = (parseFloat(plot.area) * colorConfig.val);
+        const yv = colorConfig.val;
+        const hasYield = (yv !== null && !isNaN(yv));
+        const yieldLines = hasYield
+            ? `<div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ผลผลิตต่อไร่:</b> ${yv.toFixed(1)} ตัน/ไร่ ${colorConfig.source === 'actual' ? '(จริง)' : '(ประเมิน)'}</div>
+                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ประมาณการรวม:</b> ${((parseFloat(plot.area) || 0) * yv).toFixed(1)} ตัน</div>`
+            : `<div style="font-size:10px; color:#94a3b8; margin-bottom:4px;"><b>ผลผลิตต่อไร่:</b> ยังไม่มีข้อมูล (ยังไม่ได้ประเมิน/เก็บเกี่ยว)</div>`;
         const popupContent = `
             <div style="font-family:'Prompt',sans-serif; min-width: 170px; text-align: left; line-height: 1.4;">
                 <h4 style="margin:0 0 6px 0; font-size:12px; color:#10b981; font-weight:700;">🌾 แปลง: ${plot.name}</h4>
@@ -1214,8 +1314,7 @@ function renderYieldSmartLayer() {
                 <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ขนาดพื้นที่:</b> ${plot.area} ไร่</div>
                 <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>สายพันธุ์:</b> ${plot.variety}</div>
                 <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ประเภทอ้อย:</b> ${plot.caneType || 'ไม่ระบุ'}</div>
-                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ผลผลิตต่อไร่:</b> ${colorConfig.val.toFixed(1)} ตัน/ไร่</div>
-                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ประมาณการรวม:</b> ${estYield.toFixed(1)} ตัน</div>
+                ${yieldLines}
                 <div style="font-size:10px; color:#555; margin-bottom:8px;"><b>ระดับสุขภาพ:</b> <span style="color:${colorConfig.border}; font-weight:700;">${colorConfig.name}</span></div>
                 <button type="button" onclick="showSmartMapDetails('plot', '${plot.id}')" style="background:var(--brand-green); color:white; border:none; padding:4px 8px; border-radius:6px; font-size:9.5px; width:100%; cursor:pointer; font-weight:600; text-align:center;">🔍 วิเคราะห์ข้อมูลแปลงเชิงลึก</button>
             </div>
@@ -1225,19 +1324,21 @@ function renderYieldSmartLayer() {
 }
 
 function getSoilConfig(soilType) {
+    // ข้อมูลตามชนิดดินจริงของแปลง (plot.soilType) — nutrient/fertTip เป็นคำแนะนำทั่วไปตามชนิดดิน
+    // (แทนค่า N-P-K/ความชื้น ที่เดิมฮาร์ดโค้ดเท่ากันทุกแปลง)
     switch (soilType) {
         case 'loam':
-            return { name: 'ดินร่วน (กำแพงแสน)', border: '#047857', fill: '#059669', desc: 'ดินอุ้มน้ำดี สารอาหารสูง' };
+            return { name: 'ดินร่วน (กำแพงแสน)', border: '#047857', fill: '#059669', desc: 'ดินอุ้มน้ำดี สารอาหารสูง', nutrient: 'สมดุลดี อุ้มธาตุอาหารได้ดี', fertTip: 'ใส่ปุ๋ยตามค่าวิเคราะห์ดิน เน้นรักษาอินทรียวัตถุให้คงระดับ' };
         case 'sandy_loam':
-            return { name: 'ดินร่วนปนทราย', border: '#b45309', fill: '#d97706', desc: 'ไถพรวนง่าย ระบายน้ำดี' };
+            return { name: 'ดินร่วนปนทราย', border: '#b45309', fill: '#d97706', desc: 'ไถพรวนง่าย ระบายน้ำดี', nutrient: 'ธาตุอาหารปานกลาง เสี่ยงถูกชะล้าง', fertTip: 'แบ่งใส่ปุ๋ยหลายครั้งเพื่อลดการชะล้างไนโตรเจน' };
         case 'clay_loam':
-            return { name: 'ดินร่วนเหนียว', border: '#0369a1', fill: '#0284c7', desc: 'อุ้มน้ำและธาตุอาหารดีเยี่ยม' };
+            return { name: 'ดินร่วนเหนียว', border: '#0369a1', fill: '#0284c7', desc: 'อุ้มน้ำและธาตุอาหารดีเยี่ยม', nutrient: 'อุ้มธาตุอาหารสูง', fertTip: 'ระวังน้ำขังช่วงฝนชุก ใส่ปุ๋ยพอดีไม่ต้องบ่อย' };
         case 'sandy':
-            return { name: 'ดินทรายจัด', border: '#c2410c', fill: '#ea580c', desc: 'ระบายน้ำเร็ว สารอาหารน้อย' };
+            return { name: 'ดินทรายจัด', border: '#c2410c', fill: '#ea580c', desc: 'ระบายน้ำเร็ว สารอาหารน้อย', nutrient: 'ธาตุอาหารต่ำ ชะล้างเร็ว', fertTip: 'เพิ่มปุ๋ยคอก/อินทรียวัตถุ + แบ่งใส่ปุ๋ยถี่ๆ ทีละน้อย' };
         case 'clay':
-            return { name: 'ดินเหนียวจัด', border: '#6b21a8', fill: '#8b5cf6', desc: 'ระบายน้ำยาก แต่วัตถุดิบอุ้มน้ำดี' };
+            return { name: 'ดินเหนียวจัด', border: '#6b21a8', fill: '#8b5cf6', desc: 'ระบายน้ำยาก แต่อุ้มน้ำดี', nutrient: 'อุ้มธาตุอาหารสูง แต่รากหายใจยาก', fertTip: 'ทำร่องระบายน้ำ + ปรับโครงสร้างดินด้วยอินทรียวัตถุ' };
         default:
-            return { name: 'ดินร่วน (กำแพงแสน)', border: '#047857', fill: '#059669', desc: 'ดินอุ้มน้ำดี สารอาหารสูง' };
+            return { name: 'ดินร่วน (กำแพงแสน)', border: '#047857', fill: '#059669', desc: 'ดินอุ้มน้ำดี สารอาหารสูง', nutrient: 'สมดุลดี อุ้มธาตุอาหารได้ดี', fertTip: 'ใส่ปุ๋ยตามค่าวิเคราะห์ดิน เน้นรักษาอินทรียวัตถุ' };
     }
 }
 
@@ -1288,60 +1389,69 @@ function renderSoilSmartLayer() {
                 <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ประเภทดิน:</b> ${config.name}</div>
                 <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ลักษณะดิน:</b> ${config.desc}</div>
                 <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ประเภทอ้อย:</b> ${plot.caneType || 'ไม่ระบุ'}</div>
-                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ระดับ N-P-K:</b> N=16, P=8, K=8</div>
-                <div style="font-size:10px; color:#555; margin-bottom:8px;"><b>ความชื้นเฉลี่ย:</b> 65% (ระดับพอดี)</div>
-                <button type="button" onclick="showSmartMapDetails('soil', '${plot.id}')" style="background:#ea580c; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:9.5px; width:100%; cursor:pointer; font-weight:600; text-align:center;">🧪 ดูคำแนะนำสูตรปุ๋ย</button>
+                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>แนวโน้มธาตุอาหาร:</b> ${config.nutrient}</div>
+                <div style="font-size:8.5px; color:#94a3b8; margin-bottom:8px;">* คำแนะนำทั่วไปตามชนิดดิน ไม่ใช่ผลตรวจดินรายแปลง</div>
+                <button type="button" onclick="showSmartMapDetails('soil', '${plot.id}')" style="background:#ea580c; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:9.5px; width:100%; cursor:pointer; font-weight:600; text-align:center;">🧪 ดูคำแนะนำการจัดการดิน</button>
             </div>
         `;
         poly.bindPopup(popupContent);
     });
 }
 
+// แสดงจุดที่มีการ "แจ้งพบศัตรูพืช/โรค" จริงจากรายงานของชาวไร่ (window.pestReports) เท่านั้น
+// (เลิกจำลองว่าแปลงแรก index===0 มีโรคใบขาวเสมอ)
 function renderPestSmartLayer() {
     smartMapLayers.pest.clearLayers();
-    const filtered = getFilteredPlots();
-    if (filtered.length === 0) return;
+    const reports = window.pestReports || [];
+    if (!reports.length) return;
 
-    filtered.forEach((plot, index) => {
-        // Simulate pest outbreak on first plot or if marked in database
-        const hasPest = plot.pestReported || (index === 0); 
-        if (!hasPest) return;
+    // ขอบเขต: เฉพาะรายงานของแปลง/โควตาที่ผ่านตัวกรองปัจจุบัน (เคารพตัวกรองโควตา/พันธุ์ ฯลฯ)
+    const visible = getFilteredPlots();
+    const allowedPlotId = new Set(visible.map(p => p.id));
+    const allowedQuota = new Set(visible.map(p => String(p.quota)));
 
-        const coords = getPlotPolygon(plot);
-        if (!coords) return;
-        
-        const center = getPolygonCenter(coords);
-        
-        // 1. Red warning marker
-        const redIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
+    const redIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+    });
+    const esc = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 
-        const marker = L.marker([center.lat, center.lng], { icon: redIcon }).addTo(smartMapLayers.pest);
-        
-        // 2. Pulsing danger buffer ring (500m)
-        const circle = L.circle([center.lat, center.lng], {
-            radius: 500,
-            color: '#ef4444',
-            weight: 1,
-            fillColor: '#ef4444',
-            fillOpacity: 0.15,
-            className: 'pest-outbreak-pulse'
+    reports.forEach(rep => {
+        // ต้องอยู่ในขอบเขตที่แสดง
+        if (!(allowedPlotId.has(rep.plotId) || allowedQuota.has(String(rep.quota)))) return;
+
+        // ข้ามรายการที่สแกนแล้ว "ปกติ" (ไม่พบปัญหาจริง) — ไม่ปักหมุดเตือนภัยหลอก
+        const dx = (rep.pestDiagnoses || '').trim();
+        const lvl = (rep.pestLevels || '').trim();
+        const isNormal = (lvl === '' || lvl === 'ปกติ') && (dx === '' || dx === 'ไม่ระบุเฉพาะเจาะจง');
+        if (isNormal) return;
+
+        // พิกัดจากรายงานจริง (fallback: จุดกึ่งกลางแปลง)
+        let lat, lng;
+        const loc = String(rep.pestLocation || '').split(',');
+        lat = parseFloat(loc[0]); lng = parseFloat(loc[1]);
+        if (isNaN(lat) || isNaN(lng)) {
+            const plot = visible.find(p => p.id === rep.plotId);
+            const coords = plot ? getPlotPolygon(plot) : null;
+            if (!coords) return;
+            const c = getPolygonCenter(coords);
+            lat = c.lat; lng = c.lng;
+        }
+
+        const marker = L.marker([lat, lng], { icon: redIcon }).addTo(smartMapLayers.pest);
+        const circle = L.circle([lat, lng], {
+            radius: 500, color: '#ef4444', weight: 1, fillColor: '#ef4444', fillOpacity: 0.15, className: 'pest-outbreak-pulse'
         }).addTo(smartMapLayers.pest);
 
         const popupContent = `
-            <div style="font-family:'Prompt',sans-serif; min-width: 170px; text-align: left; line-height: 1.4;">
-                <h4 style="margin:0 0 6px 0; font-size:12px; color:#ef4444; font-weight:700;">⚠️ ตรวจพบศัตรูพืชระบาด!</h4>
-                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>โรคระบาด:</b> โรคใบขาวอ้อย (White Leaf)</div>
-                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>แปลงเฝ้าระวัง:</b> แปลง ${plot.name}</div>
-                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ขอบเขตผลกระทบ:</b> รัศมี 500 เมตร</div>
-                <div style="font-size:10px; color:#555; margin-bottom:8px;"><b>status ปัจจุบัน:</b> ส่งมอบพนักงานด่วน</div>
-                <button type="button" onclick="showSmartMapDetails('pest', '${plot.id}')" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:9.5px; width:100%; cursor:pointer; font-weight:600; text-align:center;">🐛 ดูแนวทางแก้ไขด่วน</button>
+            <div style="font-family:'Prompt',sans-serif; min-width: 175px; text-align: left; line-height: 1.4;">
+                <h4 style="margin:0 0 6px 0; font-size:12px; color:#ef4444; font-weight:700;">⚠️ รายงานพบศัตรูพืช/โรค</h4>
+                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>อาการ/โรคที่พบ:</b> ${esc(dx || 'ไม่ระบุ')}</div>
+                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>ความรุนแรง:</b> ${esc(lvl || '-')}</div>
+                <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>แปลง:</b> ${esc(rep.plotName || '-')}</div>
+                <div style="font-size:10px; color:#555; margin-bottom:8px;"><b>วันที่แจ้ง:</b> ${esc(rep.offlineCreated || '-')}</div>
+                <button type="button" onclick="showSmartMapDetails('pest', '${rep.id}')" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:9.5px; width:100%; cursor:pointer; font-weight:600; text-align:center;">🐛 ดูรายละเอียด/แนวทางแก้ไข</button>
             </div>
         `;
         marker.bindPopup(popupContent);
@@ -1350,44 +1460,9 @@ function renderPestSmartLayer() {
 }
 
 function renderStaffSmartLayer() {
-    smartMapLayers.staff.clearLayers();
-    if (!window.plots || window.plots.length === 0) return;
-
-    const coords = getPlotPolygon(window.plots[0]);
-    if (!coords) return;
-    const center = getPolygonCenter(coords);
-
-    // Simulate two field officers positions
-    const staff1Pos = [center.lat + 0.005, center.lng - 0.005];
-    const staff2Pos = [center.lat - 0.004, center.lng + 0.006];
-
-    const staffIcon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div style="background:#7c3aed; width:30px; height:30px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 8px rgba(0,0,0,0.3); font-size:14px;">👨‍💼</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
-    });
-
-    const m1 = L.marker(staff1Pos, { icon: staffIcon }).addTo(smartMapLayers.staff);
-    const m2 = L.marker(staff2Pos, { icon: staffIcon }).addTo(smartMapLayers.staff);
-
-    m1.bindPopup(`
-        <div style="font-family:'Prompt',sans-serif; text-align: left; min-width: 140px; line-height: 1.4;">
-            <h4 style="margin:0 0 4px 0; font-size:12px; color:#7c3aed; font-weight:700;">🧑‍💼 ประสงค์ ใจดี (เขต 1)</h4>
-            <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>สถานะ:</b> ตรวจสอบปุ๋ยผสมสั่งตัด</div>
-            <div style="font-size:10px; color:#555; margin-bottom:6px;"><b>เป้าหมายถัดไป:</b> แปลง ${window.plots[0].name}</div>
-            <button type="button" onclick="showSmartMapDetails('staff', 'staff-1')" style="background:#7c3aed; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:9.5px; width:100%; cursor:pointer; font-weight:600; text-align:center;">📞 ติดต่อพนักงานส่งเสริม</button>
-        </div>
-    `);
-
-    m2.bindPopup(`
-        <div style="font-family:'Prompt',sans-serif; text-align: left; min-width: 140px; line-height: 1.4;">
-            <h4 style="margin:0 0 4px 0; font-size:12px; color:#7c3aed; font-weight:700;">🧑‍💼 สมศักดิ์ แสนดี (เขต 1)</h4>
-            <div style="font-size:10px; color:#555; margin-bottom:4px;"><b>สถานะ:</b> เคลื่อนที่ตามรถบรรทุก</div>
-            <div style="font-size:10px; color:#555; margin-bottom:6px;"><b>การดำเนินงาน:</b> ออนไลน์เรียลไทม์</div>
-            <button type="button" onclick="showSmartMapDetails('staff', 'staff-2')" style="background:#7c3aed; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:9.5px; width:100%; cursor:pointer; font-weight:600; text-align:center;">📞 ติดต่อพนักงานส่งเสริม</button>
-        </div>
-    `);
+    // เลิกแสดงหมุดเจ้าหน้าที่จำลอง (เดิมเป็นชื่อปลอม ประสงค์/สมศักดิ์ ที่พิกัดสุ่มรอบแปลงแรก)
+    // ระบบยังไม่มีพิกัด GPS จริงของเจ้าหน้าที่ จึงเว้นเลเยอร์นี้ว่าง — ดูเจ้าหน้าที่ผู้รับผิดชอบจริงได้จากการ์ด "วิเคราะห์ข้อมูลแปลงเชิงลึก"
+    if (smartMapLayers && smartMapLayers.staff) smartMapLayers.staff.clearLayers();
 }
 
 function showSmartMapDetails(type, id) {
@@ -1400,91 +1475,111 @@ function showSmartMapDetails(type, id) {
     if (type === 'plot') {
         const plot = window.plots.find(p => p.id === id);
         if (!plot) return;
-        
+
+        const esc = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
         const area = parseFloat(plot.area) || 0;
-        const colorConfig = getYieldColor(plot);
-        const estYield = area * colorConfig.val;
-        const profit = estYield * (parseFloat(plot.buyingPrice) || 890) - (area * 5500); 
+        const actualTons = parseFloat(plot.actualHarvestTons) || 0;
+        const cal = (typeof window.calculatePlotDetails === 'function') ? window.calculatePlotDetails(plot) : null;
+        const yObj = getPlotYieldPerRai(plot);
+        const officer = (typeof window.getResponsibleStaffName === 'function') ? window.getResponsibleStaffName(plot) : '';
+
+        // ผลผลิต + กำไร จากข้อมูลจริง: เก็บเกี่ยวแล้ว = ผลจริง, ยังไม่เก็บ = ค่าประเมิน (calculatePlotDetails), ไม่มีข้อมูล = แจ้งตรงๆ
+        let yieldRaiTxt, totalYieldTxt, profitLabel, profitTxt, basisTxt;
+        if (actualTons > 0 && area > 0) {
+            const price = parseFloat(plot.buyingPrice) || parseFloat(localStorage.getItem('smart_farmer_base_price')) || 890;
+            const ccs = parseFloat(plot.actualHarvestCCS) || 10;
+            const realPrice = price + (price * 0.06) * (ccs - 10);
+            const netProfit = actualTons * realPrice - (parseFloat(plot.costPerRai) || 0) * area;
+            yieldRaiTxt = (actualTons / area).toFixed(2) + ' ตัน/ไร่';
+            totalYieldTxt = actualTons.toFixed(2) + ' ตัน';
+            profitLabel = 'กำไร/ขาดทุนจริง';
+            profitTxt = `<span style="color:${netProfit >= 0 ? '#10b981' : '#ef4444'}; font-weight:700;">${Math.round(netProfit).toLocaleString()} บาท</span>`;
+            basisTxt = 'คำนวณจากผลเก็บเกี่ยวจริงที่บันทึกไว้';
+        } else if (yObj.val !== null && cal) {
+            const netProfit = parseFloat(cal.totalExpectedProfit) || 0;
+            yieldRaiTxt = parseFloat(cal.expectedYieldPerRai).toFixed(2) + ' ตัน/ไร่';
+            totalYieldTxt = parseFloat(cal.totalExpectedYield).toFixed(2) + ' ตัน';
+            profitLabel = 'กำไรคาดการณ์';
+            profitTxt = `<span style="color:${netProfit >= 0 ? '#10b981' : '#ef4444'}; font-weight:700;">${Math.round(netProfit).toLocaleString()} บาท</span>`;
+            basisTxt = 'ค่าประเมินจากพารามิเตอร์แปลง (ยังไม่ใช่ผลเก็บเกี่ยวจริง)';
+        } else {
+            yieldRaiTxt = 'ยังไม่มีข้อมูล';
+            totalYieldTxt = 'ยังไม่มีข้อมูล';
+            profitLabel = 'กำไร';
+            profitTxt = '<span style="color:#94a3b8;">ยังไม่มีข้อมูล</span>';
+            basisTxt = 'ยังไม่ได้ประเมินหรือบันทึกผลเก็บเกี่ยว — กดปุ่มด้านล่างเพื่อกรอกค่าประเมิน';
+        }
 
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
-                <h3 style="margin:0; font-size:13.5px; font-weight:700; color:var(--brand-green);">🌾 ผลประเมินสุขภาพและคาดการณ์ผลผลิตแปลง: ${plot.name}</h3>
+                <h3 style="margin:0; font-size:13.5px; font-weight:700; color:var(--brand-green);">🌾 วิเคราะห์แปลง: ${esc(plot.name)}</h3>
                 <button type="button" onclick="document.getElementById('smart-map-details-card').classList.add('d-none')" style="background:none; border:none; font-size:18px; font-weight:700; cursor:pointer;">&times;</button>
             </div>
-            <div style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:10px; font-size:11.5px; line-height:1.6; text-align:left;">
-                <div><b>สายพันธุ์อ้อย:</b> ${plot.variety}</div>
-                <div><b>ขนาดพื้นที่:</b> ${plot.area} ไร่</div>
-                <div><b>ระบบชลประทาน:</b> ${plot.hasIrrigation ? '💧 มีระบบชลประทาน' : '❌ อาศัยน้ำฝน'}</div>
-                <div><b>วันแจ้งปลูก:</b> ${plot.plantingDate}</div>
-                <div><b>คาดการณ์อ้อย:</b> <span style="color:var(--brand-green); font-weight:700;">${estYield.toFixed(1)} ตัน</span></div>
-                <div><b>กำไรสะสมโดยประมาณ:</b> <span style="color:#10b981; font-weight:700;">${profit.toLocaleString()} บาท</span></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; font-size:11.5px; line-height:1.5; text-align:left;">
+                <div><b>โควตา:</b> ${esc(plot.quota)}</div>
+                <div><b>ขนาดพื้นที่:</b> ${esc(plot.area)} ไร่</div>
+                <div><b>สายพันธุ์:</b> ${esc(plot.variety || '-')}</div>
+                <div><b>ประเภทอ้อย:</b> ${esc(plot.caneType || '-')}</div>
+                <div><b>ระบบชลประทาน:</b> ${plot.hasIrrigation ? '💧 มีระบบน้ำ' : '❌ อาศัยน้ำฝน'}</div>
+                <div><b>เจ้าหน้าที่ดูแล:</b> ${esc(officer || '-')}</div>
+                <div><b>ผลผลิตต่อไร่:</b> <span style="color:var(--brand-green); font-weight:700;">${yieldRaiTxt}</span></div>
+                <div><b>ผลผลิตรวม:</b> <span style="color:var(--brand-green); font-weight:700;">${totalYieldTxt}</span></div>
+                <div style="grid-column:span 2;"><b>${profitLabel}:</b> ${profitTxt}</div>
             </div>
+            <div style="margin-top:6px; font-size:9.5px; color:#94a3b8;">ℹ️ ${basisTxt}</div>
             <div style="margin-top:12px; display:flex; gap:8px;">
-                <button type="button" onclick="currentPlotId='${plot.id}'; switchScreen('screen-estimate')" class="btn" style="flex:1; margin:0; height:34px; font-size:11px; background:var(--brand-green); color:white; border:none; border-radius:8px;">🎋 จำลองสไลเดอร์ผลผลิต</button>
-                <button type="button" onclick="currentPlotId='${plot.id}'; switchScreen('screen-support')" class="btn btn-secondary" style="flex:1; margin:0; height:34px; font-size:11px; border-radius:8px;">📋 ยื่นเรื่องขอปุ๋ย/เงินทุน</button>
+                <button type="button" onclick="currentPlotId='${plot.id}'; switchScreen('screen-estimate')" class="btn" style="flex:1; margin:0; height:34px; font-size:11px; background:var(--brand-green); color:white; border:none; border-radius:8px;">🎋 ปรับค่าประเมินผลผลิต</button>
+                <button type="button" onclick="currentPlotId='${plot.id}'; switchScreen('screen-support')" class="btn btn-secondary" style="flex:1; margin:0; height:34px; font-size:11px; border-radius:8px;">📋 ยื่นขอสนับสนุน</button>
             </div>
         `;
     } else if (type === 'soil') {
         const plot = window.plots.find(p => p.id === id);
         if (!plot) return;
-        
+
+        const esc = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
         const soilType = plot.soilType || 'loam';
         const config = getSoilConfig(soilType);
 
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
-                <h3 style="margin:0; font-size:13.5px; font-weight:700; color:#d97706;">🧪 การจัดการเคมีดินและปุ๋ยผสมรายแปลง: ${plot.name}</h3>
+                <h3 style="margin:0; font-size:13.5px; font-weight:700; color:#d97706;">🧪 ข้อมูลดินและคำแนะนำการจัดการ: ${esc(plot.name)}</h3>
                 <button type="button" onclick="document.getElementById('smart-map-details-card').classList.add('d-none')" style="background:none; border:none; font-size:18px; font-weight:700; cursor:pointer;">&times;</button>
             </div>
             <div style="font-size:11.5px; line-height:1.6; text-align:left; margin-bottom:10px;">
-                <b>ประเภทเนื้อดิน:</b> ${config.name} (${config.desc})<br>
-                <b>สถานะสารอาหารอินทรียวัตถุ:</b> ไนโตรเจน (N): <span style="color:#ef4444; font-weight:700;">ขาดแคลน 🔴</span> | ฟอสฟอรัส (P): <span style="color:#d97706; font-weight:700;">ปานกลาง 🟡</span> | โพแทสเซียม (K): <span style="color:#10b981; font-weight:700;">สมบูรณ์ 🟢</span>
+                <b>ประเภทเนื้อดิน:</b> ${esc(config.name)} (${esc(config.desc)})<br>
+                <b>แนวโน้มธาตุอาหารของดินชนิดนี้:</b> ${esc(config.nutrient)}
             </div>
-            <div style="background:#fff7ed; border:1px solid #ffedd5; border-radius:8px; padding:8px; font-size:10.5px; color:#9a3412; line-height:1.45; text-align:left; margin-bottom:10px;">
-                🧪 <b>สูตรผสมปุ๋ยผสมเอง (แม่ปุ๋ย 3 สูตร):</b> แนะนำใช้ <b>46-0-0</b> (ยูเรีย) 8.5 กก./ไร่ + <b>18-46-0</b> (แดป) 4.0 กก./ไร่ เพื่อสร้างการเจริญเติบโตที่สูงสุดตามความกว้างแถวปลูก
+            <div style="background:#fff7ed; border:1px solid #ffedd5; border-radius:8px; padding:8px; font-size:10.5px; color:#9a3412; line-height:1.45; text-align:left; margin-bottom:8px;">
+                🧪 <b>คำแนะนำการจัดการดิน/ปุ๋ย:</b> ${esc(config.fertTip)}
             </div>
+            <div style="font-size:9.5px; color:#94a3b8; margin-bottom:10px;">ℹ️ เป็นคำแนะนำทั่วไปตามชนิดดินของแปลง ไม่ใช่ผลตรวจวิเคราะห์ดินรายแปลง — แนะนำส่งตรวจดินเพื่อค่าที่แม่นยำ</div>
             <div style="display:flex; gap:8px;">
-                <button type="button" onclick="currentPlotId='${plot.id}'; switchScreen('screen-estimate')" class="btn" style="width:100%; margin:0; height:34px; font-size:11px; background:#d97706; color:white; border:none; border-radius:8px;">🧪 ไปคำนวณสัดส่วนผสมปุ๋ยสั่งตัดรายแปลง</button>
+                <button type="button" onclick="currentPlotId='${plot.id}'; switchScreen('screen-estimate')" class="btn" style="width:100%; margin:0; height:34px; font-size:11px; background:#d97706; color:white; border:none; border-radius:8px;">🎋 ไปหน้าประเมิน/วางแผนแปลง</button>
             </div>
         `;
     } else if (type === 'pest') {
-        const plot = window.plots.find(p => p.id === id);
-        if (!plot) return;
+        const esc = (s) => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+        const rep = (window.pestReports || []).find(r => r.id === id);
+        if (!rep) { card.classList.add('d-none'); return; }
+        const recipes = (rep.pestRecipes && rep.pestRecipes !== 'ไม่พบคำแนะนำพิเศษ') ? rep.pestRecipes : '';
 
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
-                <h3 style="margin:0; font-size:13.5px; font-weight:700; color:#ef4444;">🐛 รายงานพิกัดและพื้นที่ระบาดวิกฤต: ${plot.name}</h3>
-                <button type="button" onclick="document.getElementById('smart-map-details-card').classList.add('d-none')" style="background:none; border:none; font-size:18px; font-weight:700; cursor:pointer;">&times;</button>
-            </div>
-            <div style="font-size:11.5px; line-height:1.5; text-align:left; margin-bottom:10px;">
-                <b>โรคระบาดที่พบ:</b> โรคใบขาวอ้อย (เกิดจากเชื้อไฟโตพลาสมา)<br>
-                <b>สถานะเตือนภัย:</b> <span style="color:#ef4444; font-weight:700;">รัศมีอันตราย 500 เมตร (แปลงเพาะปลูกข้างเคียงต้องเฝ้าระวัง)</span>
-            </div>
-            <div style="background:#fef2f2; border:1px solid #fee2e2; border-radius:8px; padding:8px; font-size:10.5px; color:#991b1b; line-height:1.45; text-align:left; margin-bottom:10px;">
-                ⚠️ <b>แนวทางแก้ไขเร่งด่วน:</b> ถอนกออ้อยที่ติดเชื้อแล้วนำไปเผาทำลายนอกแปลงด่วนเพื่อหยุดยั้งพาหะเพลี้ยจักจั่น และพ่นสารชีวภัณฑ์เสริมภูมิคุ้มกันในแปลงรอบข้าง
-            </div>
-            <div style="display:flex; gap:8px;">
-                <button type="button" onclick="currentPlotId='${plot.id}'; switchScreen('screen-pest')" class="btn" style="width:100%; margin:0; height:34px; font-size:11px; background:#ef4444; color:white; border:none; border-radius:8px;">🐛 บันทึกส่งพิกัดระบาดโรคพืชเพิ่มเติม</button>
-            </div>
-        `;
-    } else if (type === 'staff') {
-        const name = id === 'staff-1' ? 'ประสงค์ ใจดี (เขต 1)' : 'สมศักดิ์ แสนดี (เขต 1)';
-        const details = id === 'staff-1' ? 'เจ้าหน้าที่ส่งเสริมการเกษตรผู้เชี่ยวชาญการตรวจดิน' : 'เจ้าหน้าที่ผู้รับผิดชอบระบบคิวและการขนส่งอ้อย';
-
-        card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
-                <h3 style="margin:0; font-size:13.5px; font-weight:700; color:#7c3aed;">🧑‍💼 ข้อมูลติดต่อพนักงานส่งเสริมภาคสนาม</h3>
+                <h3 style="margin:0; font-size:13.5px; font-weight:700; color:#ef4444;">🐛 รายงานศัตรูพืช/โรค: ${esc(rep.plotName || '-')}</h3>
                 <button type="button" onclick="document.getElementById('smart-map-details-card').classList.add('d-none')" style="background:none; border:none; font-size:18px; font-weight:700; cursor:pointer;">&times;</button>
             </div>
             <div style="font-size:11.5px; line-height:1.6; text-align:left; margin-bottom:10px;">
-                <b>ชื่อ-สกุล:</b> ${name}<br>
-                <b>สิทธิ์ตำแหน่ง:</b> ${details}<br>
-                <b>สถานะการปฏิบัติงาน:</b> กำลังเดินงานภาคสนาม (พิกัดดาวเทียมทำงาน) 🟢
+                <b>อาการที่พบ:</b> ${esc(rep.pestSymptoms || '-')}<br>
+                <b>ผลวินิจฉัย:</b> ${esc(rep.pestDiagnoses || '-')}<br>
+                <b>ความรุนแรง:</b> ${esc(rep.pestLevels || '-')}<br>
+                <b>วันที่แจ้ง:</b> ${esc(rep.offlineCreated || '-')}
             </div>
+            ${recipes ? `<div style="background:#fef2f2; border:1px solid #fee2e2; border-radius:8px; padding:8px; font-size:10.5px; color:#991b1b; line-height:1.45; text-align:left; margin-bottom:10px;">💊 <b>คำแนะนำแนวทางแก้ไข:</b> ${esc(recipes)}</div>` : ''}
             <div style="display:flex; gap:8px;">
-                <button type="button" onclick="alert('📞 กำลังจำลองส่งสัญญาณเรียกสายสนทนากับ ${name}...');" class="btn" style="width:100%; margin:0; height:34px; font-size:11px; background:#7c3aed; color:white; border:none; border-radius:8px;">📞 กดปุ่มติดต่อเจ้าหน้าที่โดยตรง</button>
+                <button type="button" onclick="currentPlotId='${rep.plotId}'; switchScreen('screen-pest')" class="btn" style="width:100%; margin:0; height:34px; font-size:11px; background:#ef4444; color:white; border:none; border-radius:8px;">🐛 ไปหน้าจัดการโรคพืช</button>
             </div>
         `;
     }
+    // หมายเหตุ: ตัดสาขา type === 'staff' (การ์ดเจ้าหน้าที่จำลอง ประสงค์/สมศักดิ์) ออกแล้ว — ไม่มีหมุดเจ้าหน้าที่ปลอมบนแผนที่อีก
 }
 
