@@ -22327,7 +22327,7 @@ async function renderAnalyticsReports(renderPlots) {
     } else {
         if (barEmptyEl) barEmptyEl.style.display = 'none';
         if (barCanvasEl) barCanvasEl.style.display = 'block';
-        drawBarChart('chart-yield-bar', labels, values, '#1E40AF');
+        drawBarChart('chart-yield-bar', labels, values, '#4E9E33'); // D-8: เขียว = ผลผลิต/เติบโต
     }
     
     // 3. Donut Chart: Cost breakdown (Proportional to actual recorded costPerRai)
@@ -22355,15 +22355,16 @@ async function renderAnalyticsReports(renderPlots) {
         });
     });
     
+    // D-8: พาเลตตระกูลโลโก้ (เขียว/azure/gold/cyan/soil/navy/clay/silver) แทน Tailwind rainbow
     const costColors = {
-        'ค่าไถ': '#3b82f6',
-        'ค่าปลูก': '#10b981',
-        'ค่าพันธุ์': '#8b5cf6',
-        'ค่าปุ๋ย': '#f59e0b',
-        'ค่าสารเคมี': '#ef4444',
-        'ค่าดูแลรักษา': '#06b6d4',
-        'ค่าเก็บเกี่ยว': '#ec4899',
-        'อื่นๆ': '#64748b'
+        'ค่าไถ': '#4E9E33',
+        'ค่าปลูก': '#C39A3F',
+        'ค่าพันธุ์': '#2563C9',
+        'ค่าปุ๋ย': '#A0503E',
+        'ค่าสารเคมี': '#17A9CE',
+        'ค่าดูแลรักษา': '#8A6D43',
+        'ค่าเก็บเกี่ยว': '#0F2C59',
+        'อื่นๆ': '#8A97A6'
     };
     
     const segments = categories.map(cat => ({
@@ -23269,7 +23270,7 @@ function drawBarChartYield() {
     const bW = Math.floor(cW / data.length * 0.6);
     const gap = Math.floor(cW / data.length);
     const TARGET = 10;
-    const COLORS = ['#43a047','#66bb6a','#81c784','#a5d6a7','#c8e6c9'];
+    const COLORS = ['#4E9E33','#57AD74','#6CC24A','#8AD86A','#A5D6A7']; // D-8: brand green family
     let bars = data.map((d, i) => {
         const bH = Math.max(2, (d.value / maxV) * cH);
         const x = pL + i * gap + (gap - bW) / 2, y = pT + cH - bH;
@@ -23311,7 +23312,7 @@ function drawDonutChartCost() {
     const entries = Object.entries(cats).filter(([,v]) => v > 0);
     if (entries.length === 0) { container.innerHTML = '<div style="color:#aaa;font-size:10px;text-align:center;padding-top:60px;">ยังไม่มีข้อมูลต้นทุน</div>'; if(legendEl) legendEl.innerHTML=''; return; }
     const total = entries.reduce((s,[,v])=>s+v,0);
-    const CLR = ['#43a047','#1e88e5','#fb8c00','#e53935','#8e24aa','#00acc1','#6d4c41'];
+    const CLR = ['#4E9E33','#2563C9','#C39A3F','#17A9CE','#8A6D43','#0F2C59','#A0503E']; // D-8: ตระกูลโลโก้
     const W=140,H=140,cx=70,cy=70,r=55,ir=30;
     let angle = -Math.PI/2, paths='', leg='';
     entries.forEach(([cat,val],i) => {
