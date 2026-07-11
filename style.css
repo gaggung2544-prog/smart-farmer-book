@@ -676,22 +676,20 @@ h1 {
     gap: 12px;
 }
 
+/* D-5: badge ระบบเดียว ผูก --sf-* semantic (เขียว/แดง/เหลือง/cyan) ไม่มี !important ไม่มีสีฮาร์ดโค้ด */
 .status-badge {
-    padding: 2px 8px;
-    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
 }
-
-.status-badge.profit {
-    background: #e6f4ea;
-    color: #137333;
-}
-
-.status-badge.loss {
-    background: #fce8e6;
-    color: #c5221f;
-}
+.status-badge.profit { background: var(--sf-good-bg); color: var(--sf-good); }
+.status-badge.loss { background: var(--sf-danger-bg); color: var(--sf-danger); }
 
 /* Delete Plot Button (NEW) */
 .delete-plot-btn {
@@ -1647,22 +1645,10 @@ h1 {
    ============================================================================== */
 
 /* สไตล์ป้ายแสดงสถานะตอบกลับ */
-.status-badge.processing {
-    background: var(--brand-blue-light);
-    color: var(--brand-blue);
-}
-.status-badge.waiting {
-    background: #fef7e0;
-    color: #b06000;
-}
-.status-badge.approved {
-    background: #e6f4ea;
-    color: #137333;
-}
-.status-badge.unconfirmed {
-    background: #fce8e6;
-    color: #c5221f;
-}
+.status-badge.processing { background: var(--sf-data-soft); color: var(--sf-data); }
+.status-badge.waiting { background: var(--sf-warn-bg); color: var(--sf-warn); }
+.status-badge.approved { background: var(--sf-good-bg); color: var(--sf-good); }
+.status-badge.unconfirmed { background: var(--sf-danger-bg); color: var(--sf-danger); }
 
 /* หน้าจอและบัตรข้อมูลฝั่งพนักงาน */
 .staff-request-card {
@@ -2641,23 +2627,25 @@ h1, h2, h3, h4, h5, h6, .card-title, .modal-title {
 }
 
 /* High-Impact Eco-Buttons */
+/* D-5: ปุ่มหลัก = solid เขียว (--sf-accent) เงานุ่มทิศเดียว ไม่ใช่ gradient+glow, ลบ !important */
 .btn {
-    background: var(--gradient-eco) !important;
-    border-radius: 14px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.5px !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    box-shadow: 0 4px 15px rgba(90, 168, 58, 0.2) !important;
-    color: #ffffff !important;
+    background: var(--sf-accent);
+    border-radius: var(--sf-r-md);
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 4px 12px rgba(78, 158, 51, 0.22);
+    color: #ffffff;
 }
 
 .btn:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 25px rgba(90, 168, 58, 0.35) !important;
+    background: var(--sf-accent-strong);
+    transform: translateY(-1px);
+    box-shadow: 0 7px 18px rgba(78, 158, 51, 0.28);
 }
 
 .btn:active {
-    transform: scale(0.97) !important;
+    transform: translateY(0) scale(0.99);
 }
 
 .btn-secondary {
@@ -2710,17 +2698,7 @@ h1, h2, h3, h4, h5, h6, .card-title, .modal-title {
     color: var(--text-secondary) !important;
 }
 
-.status-badge.profit {
-    background: #e8f5e9 !important;
-    color: #2e7d32 !important;
-    border: 1.5px solid #c8e6c9 !important;
-}
-
-.status-badge.loss {
-    background: #ffebe5 !important;
-    color: #c62828 !important;
-    border: 1.5px solid #ffcdd2 !important;
-}
+/* D-5: ลบ premium override ของ badge (.profit/.loss ที่เคยใช้ !important) — base ใช้ --sf-* token แล้ว */
 
 /* Glassmorphic Navigation Bar */
 .app-nav {
@@ -2786,27 +2764,28 @@ h1, h2, h3, h4, h5, h6, .card-title, .modal-title {
 }
 
 /* Floating Action Button (FAB) */
+/* D-5: FAB = solid เขียว (action) เงานุ่ม ไม่ใช่ gradient, ลบ !important */
 .fab-btn {
-    width: 50px;
-    height: 50px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--color-leaf), #3f7b23) !important; /* Leaf green gradient */
-    color: white !important;
-    border: none !important;
+    background: var(--sf-accent);
+    color: #fff;
+    border: none;
     font-size: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 8px 24px rgba(90, 168, 58, 0.3) !important; /* Soft Leaf shadow */
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    transform: translateY(-14px) !important;
+    box-shadow: 0 6px 16px rgba(78, 158, 51, 0.35);
+    transition: transform .2s, box-shadow .2s;
+    transform: translateY(-14px);
     outline: none;
 }
 
 .fab-btn:hover {
-    transform: translateY(-16px) scale(1.08) !important;
-    box-shadow: 0 12px 28px rgba(90, 168, 58, 0.4) !important;
+    transform: translateY(-16px) scale(1.06);
+    box-shadow: 0 10px 22px rgba(78, 158, 51, 0.4);
 }
 
 /* Premium Modals & Overlays */
